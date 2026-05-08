@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "116216442096",
+    "project_id": "pescapr-c8a12d85",
+    "storage_bucket": "pescapr-c8a12d85.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:116216442096:android:6c5b60668a76e91046a635",
+        "android_client_info": {
+          "package_name": "com.bradmir.pescapr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkcyC8wb3ldDhf10V4bXsiLtLhRaJp2M4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
