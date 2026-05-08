@@ -132,7 +132,7 @@ fun MapaPescapr() {
     val storageRef = remember { storage.reference }
     val misPuntosDePesca = remember { mutableStateListOf<PuntoPesca>() }
 
-    val weatherApiKey = "00355d3229e5e229e0383f9dbd34dfa2"
+    val weatherApiKey = BuildConfig.OPENWEATHER_API_KEY
 
     var datosClima by remember { mutableStateOf<WeatherResponse?>(null) }
     val weatherService = remember {
