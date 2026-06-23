@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
-    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
 android {
@@ -20,11 +19,40 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // --- PARSER DE PROPIEDADES NATIVO DE KOTLIN (SIN JAVA.UTIL) ---
+        var geminiKey = ""
+        var mapsKey = ""
+        var weatherKey = ""
+
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            for (linea in localPropertiesFile.readLines()) {
+                val trimLinea = linea.trim()
+                if (trimLinea.isNotEmpty() && !trimLinea.startsWith("#") && trimLinea.contains("=")) {
+                    val partes = trimLinea.split("=", limit = 2)
+                    if (partes.size == 2) {
+                        val llave = partes[0].trim()
+                        val valor = partes[1].trim()
+                        when (llave) {
+                            "GEMINI_API_KEY" -> geminiKey = valor
+                            "MAPS_API_KEY" -> mapsKey = valor
+                            "OPENWEATHER_API_KEY" -> weatherKey = valor
+                        }
+                    }
+                }
+            }
+        }
+
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsKey\"")
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$weatherKey\"")
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true // Best practice for release to shrink app size
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -63,22 +91,27 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
 
-    // Iconos
+    // Icons
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Firebase
+    // Firebase (BOM keeps versions perfectly in sync)
     implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
 
+    // Coil for Image Loading
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Retrofit for Weather API
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Google AI SDK
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
+    // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-
-    //Coil
-    implementation("io.coil-kt:coil-compose:2.6.0")
-
-    // Retrofit para llamadas a API
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
 }
