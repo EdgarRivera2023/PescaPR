@@ -1,6 +1,5 @@
 package com.bradmir.pescapr
 
-import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -31,6 +30,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,8 +53,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Gavel
@@ -98,13 +101,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -119,18 +126,25 @@ import coil.request.SuccessResult
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.storage.StorageReference
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import com.google.android.gms.tasks.Tasks
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
@@ -138,6 +152,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import com.google.gson.annotations.SerializedName
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import java.util.Locale
@@ -176,25 +191,6 @@ interface WeatherService {
         @Query("units") units: String = "imperial",
         @Query("lang") lang: String = "es"
     ): WeatherResponse
-}
-
-data class GeminiRequest(val contents: List<GeminiContent>)
-data class GeminiContent(val parts: List<GeminiPart>)
-data class GeminiPart(val text: String? = null, val inline_data: GeminiInlineData? = null)
-data class GeminiInlineData(val mime_type: String, val data: String)
-
-data class GeminiResponse(val candidates: List<GeminiCandidate>?)
-data class GeminiCandidate(val content: GeminiContentResponse?)
-data class GeminiContentResponse(val parts: List<GeminiPartResponse>?)
-data class GeminiPartResponse(val text: String?)
-
-interface GeminiService {
-    @POST("v1beta/models/{model}:generateContent")
-    suspend fun generateContent(
-        @Path("model") model: String,
-        @Query("key") apiKey: String,
-        @Body request: GeminiRequest
-    ): GeminiResponse
 }
 
 // --- 2. ACTIVIDAD PRINCIPAL ---
@@ -274,7 +270,8 @@ fun MainTabsScreen() {
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            userScrollEnabled = false
         ) { page ->
             when (page) {
                 0 -> PantallaMapaTab()
@@ -294,7 +291,7 @@ fun PantallaMapaTab() {
 @Composable
 fun PantallaIdentificadorYRegulacionesTab() {
     val context = LocalContext.current
-    val db = remember { Firebase.firestore }
+    val db = remember { FirebaseFirestore.getInstance() }
 
     var bitmapSeleccionado by remember { mutableStateOf<Bitmap?>(null) }
     var analizando by remember { mutableStateOf<Boolean>(false) }
@@ -626,12 +623,14 @@ suspend fun ejecutarAnalisisDePezIA(imagen: Bitmap): ResultadoIdentificacion = w
             return@withContext ResultadoIdentificacion("Llave de API vacía", "", "", "La propiedad no se inyectó.", "0%", true)
         }
 
+        // 1. Preparar Imagen (JPEG Base64)
         val stream = ByteArrayOutputStream()
         imagen.compress(Bitmap.CompressFormat.JPEG, 80, stream)
         val imageBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
 
+        // 2. Configurar Retrofit con el endpoint estable v1
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://generativelanguage.googleapis.com/")
+            .baseUrl("https://generativelanguage.googleapis.com/v1/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         val service = retrofit.create(GeminiService::class.java)
@@ -645,19 +644,26 @@ suspend fun ejecutarAnalisisDePezIA(imagen: Bitmap): ResultadoIdentificacion = w
             Linea 5: Porcentaje estimado de certeza visual (ej: 95%)
         """.trimIndent()
 
+        // 3. Construir Request JSON
         val requestBody = GeminiRequest(
             contents = listOf(
                 GeminiContent(
                     parts = listOf(
                         GeminiPart(text = prompt),
-                        GeminiPart(inline_data = GeminiInlineData("image/jpeg", imageBase64))
+                        GeminiPart(inlineData = GeminiInlineData("image/jpeg", imageBase64))
                     )
                 )
             )
         )
 
-        val response = service.generateContent("gemini-2.5-flash", aiKey, requestBody)
+        // 4. Llamar al servicio usando gemini-1.5-flash
+        val response = service.generateContent("gemini-1.5-flash", aiKey, requestBody)
         val textoGenerado = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+        
+        if (textoGenerado.isBlank()) {
+            return@withContext ResultadoIdentificacion("Sin Respuesta AI", "", "", "El servidor no devolvió texto.", "0%", true)
+        }
+
         val lineas = textoGenerado.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
         if (lineas.size >= 5) {
@@ -673,6 +679,7 @@ suspend fun ejecutarAnalisisDePezIA(imagen: Bitmap): ResultadoIdentificacion = w
             ResultadoIdentificacion(
                 nombreComun = "Especie Reconocida",
                 nombreLocalPr = "",
+                nombreCientifico = "Pendiente",
                 regulacionDrna = textoGenerado.ifEmpty { "Verificar medidas en el compendio general de ley." },
                 certeza = "90%",
                 esError = false
@@ -680,14 +687,63 @@ suspend fun ejecutarAnalisisDePezIA(imagen: Bitmap): ResultadoIdentificacion = w
         }
     } catch (e: Exception) {
         e.printStackTrace()
+        val errorMsg = when (e) {
+            is retrofit2.HttpException -> "Error HTTP ${e.code()}: ${e.message()}"
+            else -> e.localizedMessage ?: "Error desconocido"
+        }
         ResultadoIdentificacion(
             nombreComun = "Fallo de Conexión REST",
             nombreLocalPr = "",
-            regulacionDrna = "Error de Servidor: ${e.message}\nVerifica tu señal.",
+            nombreCientifico = "",
+            regulacionDrna = "Error: $errorMsg\nVerifica tu señal.",
             certeza = "0%",
             esError = true
         )
     }
+}
+
+// --- DATA CLASSES PARA GEMINI REST ---
+data class GeminiRequest(
+    @SerializedName("contents") val contents: List<GeminiContent>
+)
+
+data class GeminiContent(
+    @SerializedName("parts") val parts: List<GeminiPart>
+)
+
+data class GeminiPart(
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("inlineData") val inlineData: GeminiInlineData? = null
+)
+
+data class GeminiInlineData(
+    @SerializedName("mimeType") val mimeType: String,
+    @SerializedName("data") val data: String
+)
+
+data class GeminiResponse(
+    @SerializedName("candidates") val candidates: List<GeminiCandidate>?
+)
+
+data class GeminiCandidate(
+    @SerializedName("content") val content: GeminiContentResponse?
+)
+
+data class GeminiContentResponse(
+    @SerializedName("parts") val parts: List<GeminiPartResponse>?
+)
+
+data class GeminiPartResponse(
+    @SerializedName("text") val text: String?
+)
+
+interface GeminiService {
+    @POST("models/{model}:generateContent")
+    suspend fun generateContent(
+        @Path("model") model: String,
+        @Query("key") apiKey: String,
+        @Body request: GeminiRequest
+    ): GeminiResponse
 }
 
 @Composable
@@ -724,10 +780,38 @@ fun PantallaRecordsTab() {
 @Composable
 fun MapaPescapr() {
     val context = LocalContext.current
-    val db = remember { Firebase.firestore }
-    val storage = remember { Firebase.storage }
+    val db = remember { FirebaseFirestore.getInstance() }
+    val storage = remember { FirebaseStorage.getInstance() }
     val storageRef = remember { storage.reference }
     val coroutineScope = rememberCoroutineScope()
+
+    // --- MANEJO DE PERMISOS DE UBICACIÓN ---
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasLocationPermission) {
+            launcher.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     val misPuntosDePesca = remember { mutableStateListOf<PuntoPesca>() }
     val weatherApiKey = BuildConfig.OPENWEATHER_API_KEY
@@ -739,6 +823,7 @@ fun MapaPescapr() {
     }
 
     var tipoDeMapaActual by remember { mutableStateOf(MapType.SATELLITE) }
+    val uiSettings = remember { MapUiSettings(myLocationButtonEnabled = true, scrollGesturesEnabled = true, zoomGesturesEnabled = true) }
     var mostrarSheetInfo by remember { mutableStateOf(false) }
     var puntoSeleccionado by remember { mutableStateOf<PuntoPesca?>(null) }
     val sheetState = rememberModalBottomSheetState()
@@ -750,6 +835,20 @@ fun MapaPescapr() {
 
     var urlImagenParaEditar by remember { mutableStateOf("") }
     var indiceImagenParaEditar by remember { mutableStateOf(-1) }
+
+    var mostrarDialogoNuevoPunto by remember { mutableStateOf(false) }
+    var coordenadaNueva by remember { mutableStateOf<LatLng?>(null) }
+    var nombreNuevoPunto by remember { mutableStateOf("") }
+    var descNuevoPunto by remember { mutableStateOf("") }
+    var guardandoNuevoPunto by remember { mutableStateOf(false) }
+
+    var mostrarConfirmacionBorrar by remember { mutableStateOf(false) }
+    var borrandoPunto by remember { mutableStateOf(false) }
+
+    var mostrarDialogoEditarPunto by remember { mutableStateOf(false) }
+    var nombreEditPunto by remember { mutableStateOf("") }
+    var descEditPunto by remember { mutableStateOf("") }
+    var guardandoEdicionPunto by remember { mutableStateOf(false) }
 
     val procesarYSubirFoto: (Bitmap) -> Unit = { bitmap ->
         if (puntoSeleccionado != null) {
@@ -827,21 +926,32 @@ fun MapaPescapr() {
     DisposableEffect(Unit) {
         val listener = db.collection("spots").addSnapshotListener { snapshot, error ->
             if (error != null) {
-                error.printStackTrace()
+                Toast.makeText(context, "Error de Conexión: ${error.message}", Toast.LENGTH_LONG).show()
                 return@addSnapshotListener
             }
 
             val puntos = snapshot?.documents?.mapNotNull { doc ->
                 val urls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
-                PuntoPesca(doc.id, LatLng(doc.getDouble("latitud") ?: 0.0, doc.getDouble("longitud") ?: 0.0), doc.getString("nombre") ?: "", doc.getString("descripcion") ?: "", urls)
+                PuntoPesca(
+                    id = doc.id,
+                    coordenada = LatLng(
+                        doc.getDouble("latitud") ?: 0.0,
+                        doc.getDouble("longitud") ?: 0.0
+                    ),
+                    nombre = doc.getString("nombre") ?: "",
+                    descripcion = doc.getString("descripcion") ?: "",
+                    fotosUrls = urls
+                )
             } ?: emptyList()
             misPuntosDePesca.clear()
             misPuntosDePesca.addAll(puntos)
-            puntoSeleccionado?.let { actual -> puntoSeleccionado = puntos.find { it.id == actual.id } }
+            puntoSeleccionado?.let { actual -> 
+                puntoSeleccionado = puntos.find { it.id == actual.id } 
+            }
         }
 
         onDispose {
-            listener.remove()
+            listener?.remove()
         }
     }
 
@@ -849,7 +959,14 @@ fun MapaPescapr() {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = rememberCameraPositionState { position = CameraPosition.fromLatLngZoom(LatLng(18.2208, -66.5901), 9f) },
-            properties = MapProperties(isMyLocationEnabled = true, mapType = tipoDeMapaActual)
+            properties = MapProperties(isMyLocationEnabled = hasLocationPermission, mapType = tipoDeMapaActual),
+            uiSettings = uiSettings,
+            onMapLongClick = { latLng ->
+                coordenadaNueva = latLng
+                nombreNuevoPunto = ""
+                descNuevoPunto = ""
+                mostrarDialogoNuevoPunto = true
+            }
         ) {
             misPuntosDePesca.forEach { spot ->
                 Marker(
@@ -872,6 +989,181 @@ fun MapaPescapr() {
                     }
                 )
             }
+        }
+
+        if (mostrarDialogoNuevoPunto) {
+            AlertDialog(
+                onDismissRequest = { if (!guardandoNuevoPunto) mostrarDialogoNuevoPunto = false },
+                title = { Text("Nuevo Punto de Pesca") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Introduce los detalles del nuevo spot.", style = MaterialTheme.typography.bodySmall)
+                        OutlinedTextField(
+                            value = nombreNuevoPunto,
+                            onValueChange = { nombreNuevoPunto = it },
+                            label = { Text("Nombre del lugar") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = descNuevoPunto,
+                            onValueChange = { descNuevoPunto = it },
+                            label = { Text("Descripción") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (nombreNuevoPunto.isNotBlank() && coordenadaNueva != null) {
+                                guardandoNuevoPunto = true
+                                coroutineScope.launch {
+                                    try {
+                                        val nuevoSpot = hashMapOf(
+                                            "latitud" to coordenadaNueva!!.latitude,
+                                            "longitud" to coordenadaNueva!!.longitude,
+                                            "nombre" to nombreNuevoPunto,
+                                            "descripcion" to descNuevoPunto,
+                                            "fotosUrls" to emptyList<String>()
+                                        )
+                                        withTimeout(10000) {
+                                            db.collection("spots").add(nuevoSpot).await()
+                                        }
+                                        mostrarDialogoNuevoPunto = false
+                                        Toast.makeText(context, "¡Spot guardado!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        guardandoNuevoPunto = false
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !guardandoNuevoPunto && nombreNuevoPunto.isNotBlank()
+                    ) {
+                        if (guardandoNuevoPunto) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Guardar")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarDialogoNuevoPunto = false }, enabled = !guardandoNuevoPunto) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        if (mostrarDialogoEditarPunto) {
+            AlertDialog(
+                onDismissRequest = { if (!guardandoEdicionPunto) mostrarDialogoEditarPunto = false },
+                title = { Text("Editar Punto de Pesca") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = nombreEditPunto,
+                            onValueChange = { nombreEditPunto = it },
+                            label = { Text("Nombre del lugar") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = descEditPunto,
+                            onValueChange = { descEditPunto = it },
+                            label = { Text("Descripción") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (nombreEditPunto.isNotBlank() && puntoSeleccionado != null) {
+                                guardandoEdicionPunto = true
+                                coroutineScope.launch {
+                                    try {
+                                        withTimeout(10000) {
+                                            db.collection("spots").document(puntoSeleccionado!!.id)
+                                                .update(
+                                                    "nombre", nombreEditPunto,
+                                                    "descripcion", descEditPunto
+                                                ).await()
+                                        }
+                                        mostrarDialogoEditarPunto = false
+                                        Toast.makeText(context, "¡Punto actualizado!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        guardandoEdicionPunto = false
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !guardandoEdicionPunto && nombreEditPunto.isNotBlank()
+                    ) {
+                        if (guardandoEdicionPunto) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Guardar Cambios")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarDialogoEditarPunto = false }, enabled = !guardandoEdicionPunto) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        if (mostrarConfirmacionBorrar) {
+            AlertDialog(
+                onDismissRequest = { if (!borrandoPunto) mostrarConfirmacionBorrar = false },
+                title = { Text("¿Eliminar Punto?") },
+                text = { Text("¿Estás seguro de que deseas eliminar '${puntoSeleccionado?.nombre}'? Esta acción no se puede deshacer.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            puntoSeleccionado?.let { spot ->
+                                borrandoPunto = true
+                                coroutineScope.launch {
+                                    try {
+                                        withTimeout(10000) {
+                                            db.collection("spots").document(spot.id).delete().await()
+                                        }
+                                        mostrarConfirmacionBorrar = false
+                                        mostrarSheetInfo = false
+                                        puntoSeleccionado = null
+                                        Toast.makeText(context, "Punto eliminado", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        borrandoPunto = false
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        enabled = !borrandoPunto
+                    ) {
+                        if (borrandoPunto) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Eliminar", color = Color.White)
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarConfirmacionBorrar = false }, enabled = !borrandoPunto) {
+                        Text("Cancelar")
+                    }
+                }
+            )
         }
 
         if (mostrarSheetInfo) {
@@ -903,7 +1195,7 @@ fun MapaPescapr() {
                             }
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                                ManometroMareasVerticalRojoVerde(valor = estadoMareaSimulado)
+                                RelojMareasCircular(valor = estadoMareaSimulado)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(text = "MAREA", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                                 Text(text = if(estadoMareaSimulado > 0.5) "Alta / Subiendo" else "Baja / Bajando", style = MaterialTheme.typography.bodySmall)
@@ -923,8 +1215,16 @@ fun MapaPescapr() {
                                 mostrarOpcionesFoto = true
                             }
                         }
-                        ActionBtn(Icons.Default.Edit, "Editar", Color(0xFFFFA000)) { }
-                        ActionBtn(Icons.Default.Delete, "Borrar", Color.Red) { }
+                        ActionBtn(Icons.Default.Edit, "Editar", Color(0xFFFFA000)) {
+                            puntoSeleccionado?.let { spot ->
+                                nombreEditPunto = spot.nombre
+                                descEditPunto = spot.descripcion
+                                mostrarDialogoEditarPunto = true
+                            }
+                        }
+                        ActionBtn(Icons.Default.Delete, "Borrar", Color.Red) {
+                            mostrarConfirmacionBorrar = true
+                        }
                     }
 
                     HorizontalDivider(thickness = 0.5.dp)
@@ -979,6 +1279,114 @@ fun MapaPescapr() {
             )
         }
 
+        if (mostrarDialogoEditarPunto) {
+            AlertDialog(
+                onDismissRequest = { if (!guardandoEdicionPunto) mostrarDialogoEditarPunto = false },
+                title = { Text("Editar Punto de Pesca") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = nombreEditPunto,
+                            onValueChange = { nombreEditPunto = it },
+                            label = { Text("Nombre del lugar") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = descEditPunto,
+                            onValueChange = { descEditPunto = it },
+                            label = { Text("Descripción") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (nombreEditPunto.isNotBlank() && puntoSeleccionado != null) {
+                                guardandoEdicionPunto = true
+                                coroutineScope.launch {
+                                    try {
+                                        withTimeout(10000) {
+                                            db.collection("spots").document(puntoSeleccionado!!.id)
+                                                .update(
+                                                    "nombre", nombreEditPunto,
+                                                    "descripcion", descEditPunto
+                                                ).await()
+                                        }
+                                        mostrarDialogoEditarPunto = false
+                                        Toast.makeText(context, "¡Punto actualizado!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        guardandoEdicionPunto = false
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !guardandoEdicionPunto && nombreEditPunto.isNotBlank()
+                    ) {
+                        if (guardandoEdicionPunto) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Guardar Cambios")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarDialogoEditarPunto = false }, enabled = !guardandoEdicionPunto) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        if (mostrarConfirmacionBorrar) {
+            AlertDialog(
+                onDismissRequest = { if (!borrandoPunto) mostrarConfirmacionBorrar = false },
+                title = { Text("¿Eliminar Punto?") },
+                text = { Text("¿Estás seguro de que deseas eliminar '${puntoSeleccionado?.nombre}'? Esta acción no se puede deshacer.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            puntoSeleccionado?.let { spot ->
+                                borrandoPunto = true
+                                coroutineScope.launch {
+                                    try {
+                                        withTimeout(10000) {
+                                            db.collection("spots").document(spot.id).delete().await()
+                                        }
+                                        mostrarConfirmacionBorrar = false
+                                        mostrarSheetInfo = false
+                                        puntoSeleccionado = null
+                                        Toast.makeText(context, "Punto eliminado", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        borrandoPunto = false
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        enabled = !borrandoPunto
+                    ) {
+                        if (borrandoPunto) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Eliminar", color = Color.White)
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarConfirmacionBorrar = false }, enabled = !borrandoPunto) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
         if (urlImagenParaEditar.isNotBlank()) {
             Dialog(
                 onDismissRequest = { urlImagenParaEditar = "" },
@@ -994,6 +1402,8 @@ fun MapaPescapr() {
                     var bitmapEditando by remember { mutableStateOf<Bitmap?>(null) }
                     var cargandoBitmap by remember { mutableStateOf(true) }
                     var guardandoEdicion by remember { mutableStateOf(false) }
+                    var modoRecorte by remember { mutableStateOf(false) }
+                    var rectRecorte by remember { mutableStateOf(Rect(0.1f, 0.1f, 0.9f, 0.9f)) } // Coordenadas normalizadas 0..1
 
                     LaunchedEffect(urlImagenParaEditar) {
                         cargandoBitmap = true
@@ -1021,15 +1431,84 @@ fun MapaPescapr() {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
                         } else {
                             bitmapEditando?.let { bmp ->
-                                Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = "Editando captura",
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .align(Alignment.Center)
-                                        .padding(16.dp),
-                                    contentScale = ContentScale.Fit
-                                )
+                                        .fillMaxHeight(0.7f)
+                                        .padding(16.dp)
+                                        .aspectRatio(bmp.width.toFloat() / bmp.height.toFloat(), matchHeightConstraintsFirst = true),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        bitmap = bmp.asImageBitmap(),
+                                        contentDescription = "Editando captura",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.FillBounds
+                                    )
+
+                                    if (modoRecorte) {
+                                        Canvas(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .pointerInput(Unit) {
+                                                    detectDragGestures { change, dragAmount ->
+                                                        change.consume()
+                                                        val deltaX = dragAmount.x / size.width
+                                                        val deltaY = dragAmount.y / size.height
+                                                        
+                                                        // Lógica simple para mover esquinas
+                                                        val touchX = change.position.x / size.width
+                                                        val touchY = change.position.y / size.height
+                                                        
+                                                        val distTL = (touchX - rectRecorte.left).let { it*it } + (touchY - rectRecorte.top).let { it*it }
+                                                        val distTR = (touchX - rectRecorte.right).let { it*it } + (touchY - rectRecorte.top).let { it*it }
+                                                        val distBL = (touchX - rectRecorte.left).let { it*it } + (touchY - rectRecorte.bottom).let { it*it }
+                                                        val distBR = (touchX - rectRecorte.right).let { it*it } + (touchY - rectRecorte.bottom).let { it*it }
+                                                        
+                                                        val minDist = minOf(distTL, distTR, distBL, distBR)
+                                                        
+                                                        rectRecorte = when (minDist) {
+                                                            distTL -> rectRecorte.copy(left = (rectRecorte.left + deltaX).coerceIn(0f, rectRecorte.right - 0.1f), top = (rectRecorte.top + deltaY).coerceIn(0f, rectRecorte.bottom - 0.1f))
+                                                            distTR -> rectRecorte.copy(right = (rectRecorte.right + deltaX).coerceIn(rectRecorte.left + 0.1f, 1f), top = (rectRecorte.top + deltaY).coerceIn(0f, rectRecorte.bottom - 0.1f))
+                                                            distBL -> rectRecorte.copy(left = (rectRecorte.left + deltaX).coerceIn(0f, rectRecorte.right - 0.1f), bottom = (rectRecorte.bottom + deltaY).coerceIn(rectRecorte.top + 0.1f, 1f))
+                                                            else -> rectRecorte.copy(right = (rectRecorte.right + deltaX).coerceIn(rectRecorte.left + 0.1f, 1f), bottom = (rectRecorte.bottom + deltaY).coerceIn(rectRecorte.top + 0.1f, 1f))
+                                                        }
+                                                    }
+                                                }
+                                        ) {
+                                            val rectPx = Rect(
+                                                offset = Offset(rectRecorte.left * size.width, rectRecorte.top * size.height),
+                                                size = Size(rectRecorte.width * size.width, rectRecorte.height * size.height)
+                                            )
+                                            
+                                            // Dibujar zona oscura manualmente sin usar Clear (para no ver a través del diálogo)
+                                            val colorSombra = Color.Black.copy(alpha = 0.6f)
+                                            // Arriba
+                                            drawRect(colorSombra, size = Size(size.width, rectPx.top))
+                                            // Abajo
+                                            drawRect(colorSombra, topLeft = Offset(0f, rectPx.bottom), size = Size(size.width, size.height - rectPx.bottom))
+                                            // Izquierda
+                                            drawRect(colorSombra, topLeft = Offset(0f, rectPx.top), size = Size(rectPx.left, rectPx.height))
+                                            // Derecha
+                                            drawRect(colorSombra, topLeft = Offset(rectPx.right, rectPx.top), size = Size(size.width - rectPx.right, rectPx.height))
+                                            
+                                            // Dibujar borde y esquinas
+                                            drawRect(
+                                                color = Color.White,
+                                                topLeft = rectPx.topLeft,
+                                                size = rectPx.size,
+                                                style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+                                            )
+                                            
+                                            // Esquinas (manejadores)
+                                            val handleRadius = 12.dp.toPx()
+                                            drawCircle(Color.White, handleRadius, rectPx.topLeft)
+                                            drawCircle(Color.White, handleRadius, rectPx.topRight)
+                                            drawCircle(Color.White, handleRadius, rectPx.bottomLeft)
+                                            drawCircle(Color.White, handleRadius, rectPx.bottomRight)
+                                        }
+                                    }
+                                }
                             } ?: Text("Error cargando imagen", color = Color.White, modifier = Modifier.align(Alignment.Center))
                         }
 
@@ -1044,7 +1523,43 @@ fun MapaPescapr() {
                             TextButton(onClick = { urlImagenParaEditar = "" }, enabled = !guardandoEdicion) {
                                 Text("Cancelar", color = Color.White, fontWeight = FontWeight.Bold)
                             }
-                            Text("Visor & Editor", color = Color.White, fontWeight = FontWeight.Bold)
+                            
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Visor & Editor", color = Color.White, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = {
+                                        if (puntoSeleccionado != null && indiceImagenParaEditar != -1) {
+                                            guardandoEdicion = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    // 1. Intentar borrar de Storage (opcional, basado en URL)
+                                                    try {
+                                                        storage.getReferenceFromUrl(urlImagenParaEditar).delete().await()
+                                                    } catch (e: Exception) { e.printStackTrace() }
+
+                                                    // 2. Borrar de Firestore
+                                                    val fotosActualizadas = puntoSeleccionado!!.fotosUrls.toMutableList()
+                                                    fotosActualizadas.removeAt(indiceImagenParaEditar)
+
+                                                    db.collection("spots").document(puntoSeleccionado!!.id)
+                                                        .update("fotosUrls", fotosActualizadas).await()
+
+                                                    guardandoEdicion = false
+                                                    urlImagenParaEditar = ""
+                                                    Toast.makeText(context, "Imagen eliminada", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    guardandoEdicion = false
+                                                    Toast.makeText(context, "Error al eliminar: ${e.message}", Toast.LENGTH_LONG).show()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !guardandoEdicion
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar imagen", tint = Color.Red)
+                                }
+                            }
 
                             Button(
                                 onClick = {
@@ -1114,42 +1629,68 @@ fun MapaPescapr() {
                                     .align(Alignment.BottomCenter)
                                     .background(Color.Black.copy(alpha = 0.8f))
                                     .navigationBarsPadding()
-                                    .padding(top = 24.dp, bottom = 36.dp, start = 16.dp, end = 16.dp),
+                                    .padding(top = 24.dp, bottom = 80.dp, start = 16.dp, end = 16.dp),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        val matrix = Matrix().apply { postRotate(90f) }
-                                        bitmapEditando = Bitmap.createBitmap(
-                                            bitmapEditando!!, 0, 0,
-                                            bitmapEditando!!.width, bitmapEditando!!.height,
-                                            matrix, true
-                                        )
-                                    },
-                                    border = BorderStroke(1.dp, Color.White),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Rotar 90°")
-                                }
+                                if (!modoRecorte) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            val matrix = Matrix().apply { postRotate(90f) }
+                                            bitmapEditando = Bitmap.createBitmap(
+                                                bitmapEditando!!, 0, 0,
+                                                bitmapEditando!!.width, bitmapEditando!!.height,
+                                                matrix, true
+                                            )
+                                        },
+                                        border = BorderStroke(1.dp, Color.White),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Rotar 90°")
+                                    }
 
-                                OutlinedButton(
-                                    onClick = {
-                                        val source = bitmapEditando!!
-                                        val ladoMinimo = minOf(source.width, source.height)
-                                        val xOffset = (source.width - ladoMinimo) / 2
-                                        val yOffset = (source.height - ladoMinimo) / 2
-                                        bitmapEditando = Bitmap.createBitmap(source, xOffset, yOffset, ladoMinimo, ladoMinimo)
-                                    },
-                                    border = BorderStroke(1.dp, Color.White),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Cortar Cuadrado (1:1)")
+                                    OutlinedButton(
+                                        onClick = { 
+                                            rectRecorte = Rect(0.1f, 0.1f, 0.9f, 0.9f)
+                                            modoRecorte = true 
+                                        },
+                                        border = BorderStroke(1.dp, Color.White),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.Crop, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Recorte Manual")
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = { modoRecorte = false },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Cancelar")
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            val source = bitmapEditando!!
+                                            val left = (rectRecorte.left * source.width).toInt().coerceIn(0, source.width - 1)
+                                            val top = (rectRecorte.top * source.height).toInt().coerceIn(0, source.height - 1)
+                                            val width = (rectRecorte.width * source.width).toInt().coerceIn(1, source.width - left)
+                                            val height = (rectRecorte.height * source.height).toInt().coerceIn(1, source.height - top)
+                                            
+                                            bitmapEditando = Bitmap.createBitmap(source, left, top, width, height)
+                                            modoRecorte = false
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Aplicar Recorte")
+                                    }
                                 }
                             }
                         }
@@ -1162,30 +1703,62 @@ fun MapaPescapr() {
 
 // --- 6. DETALLES VISUALES ADICIONALES ---
 @Composable
-fun ManometroMareasVerticalRojoVerde(valor: Float) {
+fun RelojMareasCircular(valor: Float) {
     val valorAnimado by animateFloatAsState(targetValue = valor, animationSpec = tween(durationMillis = 1000))
 
-    Box(modifier = Modifier.size(80.dp, 120.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 15f
-            val canvasWidth = size.width
-            val canvasHeight = size.height
-            val rectSize = Size(canvasWidth * 2f, canvasHeight)
-            val topLeftOffset = Offset(-canvasWidth, 0f)
+            val strokeWidth = 10f
+            val canvasSize = size.minDimension
+            val radius = canvasSize / 2f
+            val center = Offset(size.width / 2f, size.height / 2f)
 
-            drawArc(color = Color(0xFFF44336), startAngle = 90f, sweepAngle = 60f, useCenter = false, topLeft = topLeftOffset, size = rectSize, style = Stroke(strokeWidth, cap = StrokeCap.Round))
-            drawArc(color = Color(0xFFFFC107), startAngle = 150f, sweepAngle = 60f, useCenter = false, topLeft = topLeftOffset, size = rectSize, style = Stroke(strokeWidth))
-            drawArc(color = Color(0xFF4CAF50), startAngle = 210f, sweepAngle = 60f, useCenter = false, topLeft = topLeftOffset, size = rectSize, style = Stroke(strokeWidth, cap = StrokeCap.Round))
+            // Dibujar el arco de fondo (Reloj)
+            // Mitad Superior (Hacia Marea Alta): Verde
+            drawArc(
+                color = Color(0xFF4CAF50),
+                startAngle = 180f,
+                sweepAngle = 180f,
+                useCenter = false,
+                style = Stroke(strokeWidth, cap = StrokeCap.Round)
+            )
+            // Mitad Inferior (Hacia Marea Baja): Rojo
+            drawArc(
+                color = Color(0xFFF44336),
+                startAngle = 0f,
+                sweepAngle = 180f,
+                useCenter = false,
+                style = Stroke(strokeWidth, cap = StrokeCap.Round)
+            )
 
-            val centerPoint = Offset(canvasWidth, canvasHeight / 2f)
-            val angle = 90f + (valorAnimado * 180f)
+            // Marcas de Texto (H / L)
+            // Nota: En un Canvas de Compose es complejo dibujar texto directamente sin nativeCanvas, 
+            // pero podemos usar indicadores visuales o círculos pequeños.
+            
+            // Punto de Marea Alta (Arriba)
+            drawCircle(Color(0xFF4CAF50), radius = 6f, center = Offset(center.x, center.y - radius))
+            // Punto de Marea Baja (Abajo)
+            drawCircle(Color(0xFFF44336), radius = 6f, center = Offset(center.x, center.y + radius))
+
+            // La aguja del reloj
+            // valor 0.0 -> Alta (Top), valor 0.5 -> Baja (Bottom), valor 1.0 -> Alta (Top)
+            val angle = -90f + (valorAnimado * 360f)
             val angleRad = Math.toRadians(angle.toDouble())
-            val lineLength = canvasWidth * 0.8f
-            val endX = centerPoint.x + lineLength * cos(angleRad).toFloat()
-            val endY = centerPoint.y + lineLength * sin(angleRad).toFloat()
+            val lineLength = radius * 0.8f
+            val endX = center.x + lineLength * cos(angleRad).toFloat()
+            val endY = center.y + lineLength * sin(angleRad).toFloat()
 
-            drawLine(Color(0xFF333333), centerPoint, Offset(endX, endY), 7f, StrokeCap.Round)
-            drawCircle(Color(0xFF333333), 8f, centerPoint)
+            // Dibujar aguja
+            drawLine(
+                color = Color.DarkGray,
+                start = center,
+                end = Offset(endX, endY),
+                strokeWidth = 6f,
+                cap = StrokeCap.Round
+            )
+            
+            // Centro del reloj
+            drawCircle(Color.DarkGray, radius = 8f, center = center)
         }
     }
 }
