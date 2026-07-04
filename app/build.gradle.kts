@@ -96,10 +96,8 @@ dependencies {
 
     // Firebase (BOM keeps versions perfectly in sync)
     implementation(platform(libs.firebase.bom))
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-storage")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
 
     // Coil for Image Loading
     implementation(libs.coil.compose)
@@ -110,6 +108,9 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.play.services)
+
+    // Gemini AI SDK
+    implementation(libs.generativeai)
 
     // Testing
     testImplementation(libs.junit)
