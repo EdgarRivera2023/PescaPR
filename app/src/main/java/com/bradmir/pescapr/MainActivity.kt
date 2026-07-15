@@ -480,6 +480,11 @@ fun PantallaGuiaOficialTab() {
     }
 
     if (mostrarDialogoNueva) {
+        var urlImagenParaEditar by remember { mutableStateOf("") }
+        var bitmapParaEditar by remember { mutableStateOf<Bitmap?>(null) }
+        var indiceImagenParaEditar by remember { mutableStateOf(-1) }
+        var esNuevaImagenParaEditar by remember { mutableStateOf(false) }
+        
         val multiPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
             uris.forEach { uri ->
                 val stream = context.contentResolver.openInputStream(uri)
@@ -498,17 +503,27 @@ fun PantallaGuiaOficialTab() {
                             Icon(Icons.Default.AddAPhoto, null)
                         }
                         // Mostrar URLs existentes
-                        urlsExistentes.forEach { url ->
-                            Box(modifier = Modifier.size(80.dp)) {
+                        urlsExistentes.forEachIndexed { index, url ->
+                            Box(modifier = Modifier.size(80.dp).clickable { 
+                                urlImagenParaEditar = url
+                                bitmapParaEditar = null
+                                indiceImagenParaEditar = index
+                                esNuevaImagenParaEditar = false
+                            }) {
                                 AsyncImage(model = url, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
-                                IconButton(onClick = { urlsExistentes.remove(url) }, modifier = Modifier.size(20.dp).align(Alignment.TopEnd).background(Color.Black.copy(0.5f), CircleShape)) {
-                                    Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                if (index == 0) {
+                                    Icon(Icons.Default.Star, null, tint = Color.Yellow, modifier = Modifier.size(16.dp).align(Alignment.BottomEnd).background(Color.Black.copy(0.5f), CircleShape))
                                 }
                             }
                         }
                         // Mostrar bitmaps nuevos
-                        bitmapsNuevos.forEach { bmp ->
-                            Box(modifier = Modifier.size(80.dp)) {
+                        bitmapsNuevos.forEachIndexed { index, bmp ->
+                            Box(modifier = Modifier.size(80.dp).clickable { 
+                                bitmapParaEditar = bmp
+                                urlImagenParaEditar = ""
+                                indiceImagenParaEditar = index
+                                esNuevaImagenParaEditar = true
+                            }) {
                                 Image(bitmap = bmp.asImageBitmap(), null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
                                 IconButton(onClick = { bitmapsNuevos.remove(bmp) }, modifier = Modifier.size(20.dp).align(Alignment.TopEnd).background(Color.Black.copy(0.5f), CircleShape)) {
                                     Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(12.dp))
@@ -600,6 +615,183 @@ fun PantallaGuiaOficialTab() {
                 }
             }
         )
+
+        // --- SUB-DIÁLOGO: EDITOR DE IMAGEN ---
+        if (urlImagenParaEditar.isNotBlank() || bitmapParaEditar != null) {
+            Dialog(onDismissRequest = { urlImagenParaEditar = ""; bitmapParaEditar = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+                Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                    var bitmapEditando by remember { mutableStateOf<Bitmap?>(null) }
+                    var cargandoBitmap by remember { mutableStateOf(true) }
+                    var modoRecorte by remember { mutableStateOf(false) }
+                    var rectRecorte by remember { mutableStateOf(Rect(0.1f, 0.1f, 0.9f, 0.9f)) }
+
+                    LaunchedEffect(urlImagenParaEditar, bitmapParaEditar) {
+                        cargandoBitmap = true
+                        if (bitmapParaEditar != null) {
+                            bitmapEditando = bitmapParaEditar
+                        } else {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    val loader = ImageLoader(context)
+                                    val request = ImageRequest.Builder(context).data(urlImagenParaEditar).allowHardware(false).build()
+                                    val result = loader.execute(request)
+                                    if (result is SuccessResult) {
+                                        bitmapEditando = (result.drawable as? BitmapDrawable)?.bitmap
+                                    }
+                                } catch (e: Exception) { e.printStackTrace() }
+                            }
+                        }
+                        cargandoBitmap = false
+                    }
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (cargandoBitmap) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
+                        } else {
+                            bitmapEditando?.let { bmp ->
+                                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    Image(bitmap = bmp.asImageBitmap(), null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                                    
+                                    if (modoRecorte) {
+                                        var dragMode by remember { mutableStateOf(0) } // 0: None, 1: Move, 2: ResizeBR, 3: ResizeTL
+                                        
+                                        Canvas(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                                            detectDragGestures(
+                                                onDragStart = { offset ->
+                                                    val touchX = offset.x / size.width
+                                                    val touchY = offset.y / size.height
+                                                    
+                                                    dragMode = when {
+                                                        (touchX - rectRecorte.right).let { it * it } + (touchY - rectRecorte.bottom).let { it * it } < 0.01 -> 2 // BottomRight
+                                                        (touchX - rectRecorte.left).let { it * it } + (touchY - rectRecorte.top).let { it * it } < 0.01 -> 3 // TopLeft
+                                                        rectRecorte.contains(Offset(touchX, touchY)) -> 1 // Move
+                                                        else -> 0
+                                                    }
+                                                },
+                                                onDrag = { change, dragAmount ->
+                                                    change.consume()
+                                                    val deltaX = dragAmount.x / size.width
+                                                    val deltaY = dragAmount.y / size.height
+
+                                                    rectRecorte = when (dragMode) {
+                                                        1 -> { // Mover
+                                                            Rect(
+                                                                (rectRecorte.left + deltaX).coerceIn(0f, 1f - rectRecorte.width),
+                                                                (rectRecorte.top + deltaY).coerceIn(0f, 1f - rectRecorte.height),
+                                                                (rectRecorte.right + deltaX).coerceIn(rectRecorte.width, 1f),
+                                                                (rectRecorte.bottom + deltaY).coerceIn(rectRecorte.height, 1f)
+                                                            )
+                                                        }
+                                                        2 -> { // Redimensionar Bottom-Right
+                                                            Rect(
+                                                                rectRecorte.left,
+                                                                rectRecorte.top,
+                                                                (rectRecorte.right + deltaX).coerceIn(rectRecorte.left + 0.05f, 1f),
+                                                                (rectRecorte.bottom + deltaY).coerceIn(rectRecorte.top + 0.05f, 1f)
+                                                            )
+                                                        }
+                                                        3 -> { // Redimensionar Top-Left
+                                                            Rect(
+                                                                (rectRecorte.left + deltaX).coerceIn(0f, rectRecorte.right - 0.05f),
+                                                                (rectRecorte.top + deltaY).coerceIn(0f, rectRecorte.bottom - 0.05f),
+                                                                rectRecorte.right,
+                                                                rectRecorte.bottom
+                                                            )
+                                                        }
+                                                        else -> rectRecorte
+                                                    }
+                                                }
+                                            )
+                                        }) {
+                                            // Sombra exterior (dibujada en 4 bloques para evitar Clear/transparencia)
+                                            val rectPx = Rect(rectRecorte.left * size.width, rectRecorte.top * size.height, rectRecorte.right * size.width, rectRecorte.bottom * size.height)
+                                            val shadowColor = Color.Black.copy(alpha = 0.5f)
+
+                                            // Arriba
+                                            drawRect(shadowColor, topLeft = Offset(0f, 0f), size = Size(size.width, rectPx.top))
+                                            // Abajo
+                                            drawRect(shadowColor, topLeft = Offset(0f, rectPx.bottom), size = Size(size.width, size.height - rectPx.bottom))
+                                            // Izquierda
+                                            drawRect(shadowColor, topLeft = Offset(0f, rectPx.top), size = Size(rectPx.left, rectPx.height))
+                                            // Derecha
+                                            drawRect(shadowColor, topLeft = Offset(rectPx.right, rectPx.top), size = Size(size.width - rectPx.right, rectPx.height))
+                                            
+                                            // Borde del cuadro
+                                            drawRect(Color.White, topLeft = rectPx.topLeft, size = rectPx.size, style = Stroke(2.dp.toPx()))
+                                            
+                                            // Esquinas de agarre
+                                            drawCircle(Color.White, radius = 10.dp.toPx(), center = rectPx.bottomRight)
+                                            drawCircle(Color.White, radius = 10.dp.toPx(), center = rectPx.topLeft)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Column(modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 80.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                Button(onClick = { 
+                                    val matrix = Matrix().apply { postRotate(90f) }
+                                    bitmapEditando?.let { bitmapEditando = Bitmap.createBitmap(it, 0, 0, it.width, it.height, matrix, true) }
+                                }) { Icon(Icons.Default.RotateRight, null); Text("Rotar") }
+                                
+                                Button(onClick = { 
+                                    if (modoRecorte) {
+                                        // APLICAR RECORTE REAL
+                                        bitmapEditando?.let { bmp ->
+                                            val left = (rectRecorte.left * bmp.width).toInt().coerceIn(0, bmp.width - 1)
+                                            val top = (rectRecorte.top * bmp.height).toInt().coerceIn(0, bmp.height - 1)
+                                            val width = (rectRecorte.width * bmp.width).toInt().coerceIn(1, bmp.width - left)
+                                            val height = (rectRecorte.height * bmp.height).toInt().coerceIn(1, bmp.height - top)
+                                            
+                                            val cropped = Bitmap.createBitmap(bmp, left, top, width, height)
+                                            if (esNuevaImagenParaEditar) {
+                                                bitmapsNuevos[indiceImagenParaEditar] = cropped
+                                            } else {
+                                                // Si era una URL existente, ahora la tratamos como nueva local para que se suba el cambio
+                                                urlsExistentes.removeAt(indiceImagenParaEditar)
+                                                bitmapsNuevos.add(cropped)
+                                            }
+                                            urlImagenParaEditar = ""; bitmapParaEditar = null
+                                            Toast.makeText(context, "Imagen recortada", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    modoRecorte = !modoRecorte 
+                                }, colors = ButtonDefaults.buttonColors(containerColor = if(modoRecorte) Color.Yellow else MaterialTheme.colorScheme.primary, contentColor = if(modoRecorte) Color.Black else Color.White)) { 
+                                    Icon(if(modoRecorte) Icons.Default.Check else Icons.Default.Crop, null)
+                                    Text(if(modoRecorte) "Confirmar Zoom" else "Zoom/Crop") 
+                                }
+                            }
+                            
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                Button(onClick = { 
+                                    if (esNuevaImagenParaEditar) {
+                                        // No se puede reordenar directamente con URLs, hay que mover el bitmap al inicio
+                                        val current = bitmapsNuevos[indiceImagenParaEditar]
+                                        bitmapsNuevos.removeAt(indiceImagenParaEditar)
+                                        bitmapsNuevos.add(0, current)
+                                    } else {
+                                        val current = urlsExistentes[indiceImagenParaEditar]
+                                        urlsExistentes.removeAt(indiceImagenParaEditar)
+                                        urlsExistentes.add(0, current)
+                                    }
+                                    urlImagenParaEditar = ""; bitmapParaEditar = null
+                                    Toast.makeText(context, "Portada seleccionada", Toast.LENGTH_SHORT).show()
+                                }) { Icon(Icons.Default.Star, null); Text("Thumbnail") }
+
+                                OutlinedButton(onClick = { urlImagenParaEditar = ""; bitmapParaEditar = null }, border = BorderStroke(1.dp, Color.White)) { Text("Cerrar", color = Color.White) }
+
+                                IconButton(onClick = { 
+                                    if (esNuevaImagenParaEditar) bitmapsNuevos.removeAt(indiceImagenParaEditar)
+                                    else urlsExistentes.removeAt(indiceImagenParaEditar)
+                                    urlImagenParaEditar = ""; bitmapParaEditar = null
+                                }) { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
 }

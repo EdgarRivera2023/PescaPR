@@ -12,4 +12,8 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# Binaries and large files
+*.exe
+*.aab
+/app/release/
