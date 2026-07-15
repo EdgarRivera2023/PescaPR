@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -71,12 +72,14 @@ import coil.request.SuccessResult
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.ai.client.generativeai.type.generationConfig
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.maps.android.compose.*
@@ -128,6 +131,22 @@ data class ResultadoIdentificacion(
     val esError: Boolean = false
 )
 
+data class RecordPesca(
+    val id: String = "",
+    val nombrePez: String = "",
+    val peso: String = "",
+    val longitud: String = "",
+    val lugar: String = "",
+    val fecha: String = "",
+    val fotosUrls: List<String> = emptyList(),
+    val spotId: String = "",
+    val fishId: String? = null,
+    val climaTemp: String = "",
+    val climaWind: String = "",
+    val climaPressure: String = "",
+    val climaTide: String = ""
+)
+
 data class WeatherResponse(val main: MainData, val wind: WindData)
 data class MainData(val temp: Float, val pressure: Int)
 data class WindData(val speed: Float)
@@ -159,9 +178,12 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainTabsScreen() {
-    val tabs = listOf("Mapa", "Identificador", "Guía Official", "Mis Récords")
+    val tabs = listOf("Mapa", "Identificar", "Guía Official", "Mis Récords")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
+    
+    // Foco para navegación desde Récords -> Mapa
+    var spotIdAFocar by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
         Row(
@@ -186,10 +208,13 @@ fun MainTabsScreen() {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), userScrollEnabled = false) { page ->
             when (page) {
-                0 -> PantallaMapaTab()
+                0 -> PantallaMapaTab(spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
                 1 -> PantallaIdentificadorYRegulacionesTab()
                 2 -> PantallaGuiaOficialTab()
-                3 -> PantallaRecordsTab()
+                3 -> PantallaRecordsTab(onIrALugar = { id -> 
+                    spotIdAFocar = id
+                    coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                })
             }
         }
     }
@@ -197,8 +222,8 @@ fun MainTabsScreen() {
 
 // --- TAB 1: MAPA ---
 @Composable
-fun PantallaMapaTab() {
-    MapaPescapr()
+fun PantallaMapaTab(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
+    MapaPescapr(spotIdAFocar = spotIdAFocar, onFocoLogrado = onFocoLogrado)
 }
 
 // --- TAB 2: IDENTIFICADOR (Matching with Cards) ---
@@ -885,31 +910,158 @@ suspend fun ejecutarMatchingConFichas(db: FirebaseFirestore, userImage: Bitmap):
 
 // --- TAB 4: MIS RÉCORDS ---
 @Composable
-fun PantallaRecordsTab() {
+fun PantallaRecordsTab(onIrALugar: (String) -> Unit = {}) {
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
-    val records = remember { mutableStateListOf<Map<String, Any>>() }
+    val records = remember { mutableStateListOf<RecordPesca>() }
+    val spots = remember { mutableStateMapOf<String, String>() } // spotId -> spotNombre
+
+    // Estado para Edición
+    var recordParaEditar by remember { mutableStateOf<RecordPesca?>(null) }
+    var mostrarDialogoEdit by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        db.collection("mis_records").orderBy("timestamp").addSnapshotListener { snap, _ ->
+        // Cargar nombres de spots para referencia
+        db.collection("spots").get().addOnSuccessListener { snap ->
+            snap.documents.forEach { doc ->
+                spots[doc.id] = doc.getString("nombre") ?: "Ubicación desconocida"
+            }
+        }
+
+        db.collection("mis_records").addSnapshotListener { snap, _ ->
             records.clear()
-            snap?.documents?.forEach { doc -> records.add(doc.data ?: emptyMap()) }
+            snap?.documents?.forEach { doc ->
+                records.add(
+                    RecordPesca(
+                        id = doc.id,
+                        nombrePez = doc.getString("nombrePez") ?: "",
+                        peso = doc.getString("peso") ?: "",
+                        longitud = doc.getString("longitud") ?: "",
+                        lugar = doc.getString("lugar") ?: "",
+                        fecha = doc.getString("fecha") ?: "",
+                        spotId = doc.getString("spotId") ?: "",
+                        fishId = doc.getString("fishId"),
+                        fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+                    )
+                )
+            }
         }
     }
 
+    val groupedRecords = records.groupBy { it.nombrePez }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Mis Capturas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Mis Récords por Especie", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         HorizontalDivider()
-        records.forEach { record ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(record["nombre"].toString(), fontWeight = FontWeight.Bold)
-                        Text(record["estatus"].toString(), style = MaterialTheme.typography.bodySmall)
+
+        if (records.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Aún no tienes capturas registradas.", color = Color.Gray)
+            }
+        } else {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                groupedRecords.forEach { (especie, capturas) ->
+                    var expandido by remember { mutableStateOf(false) }
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth().animateContentSize(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        onClick = { expandido = !expandido }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Waves, null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(especie, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                }
+                                Text("${capturas.size} capturas", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            }
+                            
+                            if (expandido) {
+                                Spacer(Modifier.height(12.dp))
+                                HorizontalDivider(thickness = 0.5.dp)
+                                Spacer(Modifier.height(8.dp))
+                                
+                                capturas.forEach { record ->
+                                    val nombreLugar = if (record.spotId.isNotEmpty()) spots[record.spotId] ?: record.lugar else record.lugar
+                                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Column {
+                                            Text(nombreLugar, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                            Text(record.fecha, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("${record.peso} | ${record.longitud}", style = MaterialTheme.typography.bodySmall)
+                                            Row {
+                                                if (record.spotId.isNotEmpty()) {
+                                                    IconButton(onClick = {
+                                                        onIrALugar(record.spotId)
+                                                    }, modifier = Modifier.size(24.dp)) {
+                                                        Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
+                                                    }
+                                                }
+                                                IconButton(onClick = {
+                                                    recordParaEditar = record
+                                                    mostrarDialogoEdit = true
+                                                }, modifier = Modifier.size(24.dp)) {
+                                                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                                IconButton(onClick = {
+                                                    db.collection("mis_records").document(record.id).delete()
+                                                }, modifier = Modifier.size(24.dp)) {
+                                                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
                 }
             }
         }
+    }
+
+    if (mostrarDialogoEdit && recordParaEditar != null) {
+        var nombrePez by remember { mutableStateOf("") }
+        var peso by remember { mutableStateOf("") }
+        var longitud by remember { mutableStateOf("") }
+        var guardando by remember { mutableStateOf(false) }
+
+        LaunchedEffect(recordParaEditar) {
+            nombrePez = recordParaEditar?.nombrePez ?: ""
+            peso = recordParaEditar?.peso ?: ""
+            longitud = recordParaEditar?.longitud ?: ""
+        }
+
+        AlertDialog(
+            onDismissRequest = { if (!guardando) mostrarDialogoEdit = false },
+            title = { Text("Editar Captura") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = nombrePez, onValueChange = { nombrePez = it }, label = { Text("Especie") }, modifier = Modifier.fillMaxWidth())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(value = peso, onValueChange = { peso = it }, label = { Text("Peso") }, modifier = Modifier.weight(1f))
+                        OutlinedTextField(value = longitud, onValueChange = { longitud = it }, label = { Text("Longitud") }, modifier = Modifier.weight(1f))
+                    }
+                    if (guardando) CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    guardando = true
+                    db.collection("mis_records").document(recordParaEditar!!.id).update(
+                        mapOf("nombrePez" to nombrePez, "peso" to peso, "longitud" to longitud)
+                    ).addOnCompleteListener {
+                        guardando = false
+                        mostrarDialogoEdit = false
+                    }
+                }) { Text("Guardar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoEdit = false }) { Text("Cancelar") }
+            }
+        )
     }
 }
 
@@ -969,7 +1121,7 @@ fun WeatherInfoItem(icon: ImageVector, value: String, label: String, tintOverrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapaPescapr() {
+fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
     val context = LocalContext.current
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
     val storage = remember { FirebaseStorage.getInstance() }
@@ -981,13 +1133,91 @@ fun MapaPescapr() {
     }
     LaunchedEffect(Unit) { if (!hasLocationPermission) launcher.launch(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)) }
 
+    val cameraPositionState = rememberCameraPositionState { position = CameraPosition.fromLatLngZoom(LatLng(18.2208, -66.5901), 9f) }
+
     val misPuntos = remember { mutableStateListOf<PuntoPesca>() }
     var spotSeleccionado by remember { mutableStateOf<PuntoPesca?>(null) }
     var mostrarSheet by remember { mutableStateOf(false) }
 
+    // --- NUEVOS PUNTOS ---
+    var mostrarDialogoNuevoPunto by remember { mutableStateOf(false) }
+    var nuevaCoordenada by remember { mutableStateOf<LatLng?>(null) }
+    var nombreNuevoPunto by remember { mutableStateOf("") }
+    var descripcionNuevoPunto by remember { mutableStateOf("") }
+    var guardandoPunto by remember { mutableStateOf(false) }
+
+    var subiendoFotoSpot by remember { mutableStateOf(false) }
+    var fotoAmpliadaUrl by remember { mutableStateOf<String?>(null) }
+
+    // --- CAPTURAS EN EL SPOT ---
+    val capturasSpot = remember { mutableStateListOf<RecordPesca>() }
+    var mostrarDialogoCaptura by remember { mutableStateOf(false) }
+    var cargandoCapturas by remember { mutableStateOf(false) }
+    val fichasGuia = remember { mutableStateListOf<FichaPez>() }
+
+    // --- NUEVAS CAPTURAS ---
+    var recordParaEditarCaptura by remember { mutableStateOf<RecordPesca?>(null) }
+    var nombrePezCaptura by remember { mutableStateOf("") }
+    var pesoCaptura by remember { mutableStateOf("") }
+    var longitudCaptura by remember { mutableStateOf("") }
+    var fichaSeleccionada by remember { mutableStateOf<FichaPez?>(null) }
+    val bitmapsCaptura = remember { mutableStateListOf<Bitmap>() }
+    var guardandoCaptura by remember { mutableStateOf(false) }
+    var expandedGuia by remember { mutableStateOf(false) }
+
     // Clima
     var datosClima by remember { mutableStateOf<WeatherResponse?>(null) }
     var cargandoClima by remember { mutableStateOf(false) }
+
+    LaunchedEffect(mostrarDialogoCaptura) {
+        if (mostrarDialogoCaptura) {
+            nombrePezCaptura = recordParaEditarCaptura?.nombrePez ?: ""
+            pesoCaptura = recordParaEditarCaptura?.peso ?: ""
+            longitudCaptura = recordParaEditarCaptura?.longitud ?: ""
+            fichaSeleccionada = fichasGuia.find { it.id == recordParaEditarCaptura?.fishId }
+            bitmapsCaptura.clear()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        db.collection("fichas_peces").addSnapshotListener { snap, _ ->
+            fichasGuia.clear()
+            snap?.documents?.mapNotNull { doc ->
+                FichaPez(
+                    id = doc.id,
+                    nombreComun = doc.getString("nombreComun") ?: "",
+                    nombreCientifico = doc.getString("nombreCientifico") ?: "",
+                    fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+                )
+            }?.let { fichasGuia.addAll(it) }
+        }
+    }
+
+    LaunchedEffect(spotSeleccionado) {
+        spotSeleccionado?.let { spot ->
+            cargandoCapturas = true
+            db.collection("mis_records")
+                .whereEqualTo("spotId", spot.id)
+                .addSnapshotListener { snap, _ ->
+                    capturasSpot.clear()
+                    snap?.documents?.mapNotNull { doc ->
+                        RecordPesca(
+                            id = doc.id,
+                            nombrePez = doc.getString("nombrePez") ?: "",
+                            peso = doc.getString("peso") ?: "",
+                            longitud = doc.getString("longitud") ?: "",
+                            fecha = doc.getString("fecha") ?: "",
+                            fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList(),
+                            climaTemp = doc.getString("climaTemp") ?: "",
+                            climaWind = doc.getString("climaWind") ?: "",
+                            climaPressure = doc.getString("climaPressure") ?: "",
+                            climaTide = doc.getString("climaTide") ?: ""
+                        )
+                    }?.let { capturasSpot.addAll(it) }
+                    cargandoCapturas = false
+                }
+        }
+    }
     
     val weatherService = remember {
         Retrofit.Builder().baseUrl("https://api.openweathermap.org/data/2.5/")
@@ -1023,10 +1253,30 @@ fun MapaPescapr() {
         onDispose { l?.remove() }
     }
 
+    LaunchedEffect(spotIdAFocar, misPuntos.size) {
+        if (spotIdAFocar != null && misPuntos.isNotEmpty()) {
+            val spot = misPuntos.find { it.id == spotIdAFocar }
+            if (spot != null) {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(spot.coordenada, 15f)
+                )
+                spotSeleccionado = spot
+                mostrarSheet = true
+                onFocoLogrado()
+            }
+        }
+    }
+
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
-        cameraPositionState = rememberCameraPositionState { position = CameraPosition.fromLatLngZoom(LatLng(18.2208, -66.5901), 9f) },
-        properties = MapProperties(isMyLocationEnabled = hasLocationPermission, mapType = MapType.SATELLITE)
+        cameraPositionState = cameraPositionState,
+        properties = MapProperties(isMyLocationEnabled = hasLocationPermission, mapType = MapType.SATELLITE),
+        onMapLongClick = { latLng ->
+            nuevaCoordenada = latLng
+            nombreNuevoPunto = ""
+            descripcionNuevoPunto = ""
+            mostrarDialogoNuevoPunto = true
+        }
     ) {
         misPuntos.forEach { spot ->
             Marker(
@@ -1050,10 +1300,33 @@ fun MapaPescapr() {
     }
 
     if (mostrarSheet) {
+        val photoPickerLauncherSpot = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                coroutineScope.launch {
+                    subiendoFotoSpot = true
+                    try {
+                        val ref = storage.reference.child("spots/${spotSeleccionado?.id}/${UUID.randomUUID()}.jpg")
+                        ref.putFile(it).await()
+                        val url = ref.downloadUrl.await().toString()
+                        db.collection("spots").document(spotSeleccionado!!.id)
+                            .update("fotosUrls", FieldValue.arrayUnion(url)).await()
+                        Toast.makeText(context, "Foto añadida", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Toast.makeText(context, "Error al subir foto", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        subiendoFotoSpot = false
+                    }
+                }
+            }
+        }
+
         ModalBottomSheet(onDismissRequest = { mostrarSheet = false }) {
-            Column(modifier = Modifier.padding(16.dp).fillMaxWidth().fillMaxHeight(0.7f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(spotSeleccionado?.nombre ?: "", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(spotSeleccionado?.descripcion ?: "", color = Color.Gray)
+            val spotActual = misPuntos.find { it.id == spotSeleccionado?.id } ?: spotSeleccionado
+            
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth().fillMaxHeight(0.85f).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(spotActual?.nombre ?: "", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(spotActual?.descripcion ?: "", color = Color.Gray)
                 
                 Spacer(Modifier.height(16.dp))
 
@@ -1093,16 +1366,382 @@ fun MapaPescapr() {
                 HorizontalDivider()
                 Spacer(Modifier.height(16.dp))
 
-                val fotos = spotSeleccionado?.fotosUrls ?: emptyList()
-                if (fotos.isNotEmpty()) {
-                    Text("Fotos del Spot", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-                    Spacer(Modifier.height(8.dp))
-                    LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = Modifier.height(200.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(fotos) { url ->
-                            AsyncImage(model = url, contentDescription = null, modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                val fotos = spotActual?.fotosUrls ?: emptyList()
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Fotos del Spot (${fotos.size}/4)", style = MaterialTheme.typography.titleSmall)
+                    if (fotos.size < 4) {
+                        IconButton(onClick = { photoPickerLauncherSpot.launch("image/*") }, enabled = !subiendoFotoSpot) {
+                            if (subiendoFotoSpot) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            else Icon(Icons.Default.AddAPhoto, null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
+                
+                Spacer(Modifier.height(8.dp))
+                
+                if (fotos.isNotEmpty()) {
+                    LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(100.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(fotos) { url ->
+                            Box {
+                                AsyncImage(
+                                    model = url, 
+                                    contentDescription = null, 
+                                    modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable { fotoAmpliadaUrl = url }, 
+                                    contentScale = ContentScale.Crop
+                                )
+                                IconButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                db.collection("spots").document(spotActual!!.id)
+                                                    .update("fotosUrls", FieldValue.arrayRemove(url)).await()
+                                                Toast.makeText(context, "Foto eliminada", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.size(24.dp).align(Alignment.TopEnd).background(Color.White.copy(0.7f), CircleShape).padding(2.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp), tint = Color.Red)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text("No hay fotos de esta ubicación.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                }
+
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Capturas en esta ubicación", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Button(onClick = { mostrarDialogoCaptura = true }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Registrar")
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                if (cargandoCapturas) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else if (capturasSpot.isEmpty()) {
+                    Text("No hay capturas registradas aquí aún.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                } else {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        capturasSpot.forEach { record ->
+                            var verDetallesCaptura by remember { mutableStateOf(false) }
+                            Card(
+                                modifier = Modifier.fillMaxWidth().clickable { verDetallesCaptura = true },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.3f))
+                            ) {
+                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    if (record.fotosUrls.isNotEmpty()) {
+                                        AsyncImage(model = record.fotosUrls.first(), contentDescription = null, modifier = Modifier.size(50.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                                    } else {
+                                        Box(modifier = Modifier.size(50.dp).background(Color.LightGray, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Image, null, tint = Color.Gray)
+                                        }
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(record.nombrePez, fontWeight = FontWeight.Bold)
+                                        Text("${record.peso} | ${record.longitud}", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    
+                                    Row {
+                                        IconButton(onClick = {
+                                            recordParaEditarCaptura = record
+                                            mostrarDialogoCaptura = true
+                                        }, modifier = Modifier.size(32.dp)) {
+                                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                        IconButton(onClick = {
+                                            coroutineScope.launch {
+                                                try {
+                                                    db.collection("mis_records").document(record.id).delete().await()
+                                                    Toast.makeText(context, "Captura eliminada", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }, modifier = Modifier.size(32.dp)) {
+                                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (verDetallesCaptura) {
+                                Dialog(onDismissRequest = { verDetallesCaptura = false }) {
+                                    Card(modifier = Modifier.fillMaxWidth().padding(16.dp), shape = RoundedCornerShape(16.dp)) {
+                                        Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Detalles de la Captura", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                            Spacer(Modifier.height(16.dp))
+                                            
+                                            if (record.fotosUrls.isNotEmpty()) {
+                                                LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.height(150.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    items(record.fotosUrls) { url ->
+                                                        AsyncImage(model = url, contentDescription = null, modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                                                    }
+                                                }
+                                                Spacer(Modifier.height(16.dp))
+                                            }
+
+                                            Text(record.nombrePez, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                                Text("Peso: ${record.peso}", style = MaterialTheme.typography.bodyMedium)
+                                                Text("Longitud: ${record.longitud}", style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                            Text("Fecha: ${record.fecha}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                            
+                                            Spacer(Modifier.height(16.dp))
+                                            HorizontalDivider()
+                                            Spacer(Modifier.height(16.dp))
+                                            
+                                            Text("Condiciones al momento de captura:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                            Spacer(Modifier.height(8.dp))
+                                            
+                                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                                WeatherInfoItem(Icons.Default.Thermostat, record.climaTemp, "Temperatura", tintOverride = MaterialTheme.colorScheme.secondary)
+                                                WeatherInfoItem(Icons.Default.Air, record.climaWind, "Viento", tintOverride = MaterialTheme.colorScheme.secondary)
+                                                WeatherInfoItem(Icons.Default.Speed, record.climaPressure, "Presión", tintOverride = MaterialTheme.colorScheme.secondary)
+                                                WeatherInfoItem(Icons.Default.Water, record.climaTide, "Marea", tintOverride = MaterialTheme.colorScheme.secondary)
+                                            }
+
+                                            Spacer(Modifier.height(24.dp))
+                                            Button(onClick = { verDetallesCaptura = false }, modifier = Modifier.fillMaxWidth()) {
+                                                Text("Cerrar")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (mostrarDialogoNuevoPunto) {
+        AlertDialog(
+            onDismissRequest = { if (!guardandoPunto) mostrarDialogoNuevoPunto = false },
+            title = { Text("Nuevo Punto de Pesca") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = nombreNuevoPunto,
+                        onValueChange = { nombreNuevoPunto = it },
+                        label = { Text("Nombre del Spot") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = descripcionNuevoPunto,
+                        onValueChange = { descripcionNuevoPunto = it },
+                        label = { Text("Descripción") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                    if (guardandoPunto) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nombreNuevoPunto.isNotBlank() && nuevaCoordenada != null) {
+                            coroutineScope.launch {
+                                guardandoPunto = true
+                                try {
+                                    val nuevoDoc = hashMapOf(
+                                        "nombre" to nombreNuevoPunto,
+                                        "descripcion" to descripcionNuevoPunto,
+                                        "latitud" to nuevaCoordenada!!.latitude,
+                                        "longitud" to nuevaCoordenada!!.longitude,
+                                        "fotosUrls" to emptyList<String>()
+                                    )
+                                    db.collection("spots").add(nuevoDoc).await()
+                                    mostrarDialogoNuevoPunto = false
+                                    Toast.makeText(context, "Spot guardado con éxito", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    Toast.makeText(context, "Error al guardar: ${e.message}", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    guardandoPunto = false
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, "Por favor, ingresa un nombre", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = !guardandoPunto
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoNuevoPunto = false }, enabled = !guardandoPunto) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (mostrarDialogoCaptura) {
+        val multiPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+            uris.forEach { uri ->
+                val stream = context.contentResolver.openInputStream(uri)
+                val bmp = BitmapFactory.decodeStream(stream)
+                bmp?.let { bitmapsCaptura.add(it) }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { if (!guardandoCaptura) mostrarDialogoCaptura = false },
+            title = { Text(if (recordParaEditarCaptura == null) "Registrar Captura" else "Editar Captura") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Ubicación: ${spotSeleccionado?.nombre}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    
+                    // Selección de Pez de la Guía
+                    Box {
+                        OutlinedTextField(
+                            value = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura,
+                            onValueChange = { nombrePezCaptura = it; fichaSeleccionada = null },
+                            label = { Text("Especie (Guía Oficial o Manual)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                IconButton(onClick = { expandedGuia = true }) {
+                                    Icon(Icons.Default.ArrowDropDown, null)
+                                }
+                            }
+                        )
+                        DropdownMenu(expanded = expandedGuia, onDismissRequest = { expandedGuia = false }, modifier = Modifier.fillMaxWidth(0.8f)) {
+                            fichasGuia.forEach { ficha ->
+                                DropdownMenuItem(
+                                    text = { Column { Text(ficha.nombreComun, fontWeight = FontWeight.Bold); Text(ficha.nombreCientifico, style = MaterialTheme.typography.labelSmall) } },
+                                    onClick = { fichaSeleccionada = ficha; expandedGuia = false }
+                                )
+                            }
+                        }
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(value = pesoCaptura, onValueChange = { pesoCaptura = it }, label = { Text("Peso (lb/oz)") }, modifier = Modifier.weight(1f))
+                        OutlinedTextField(value = longitudCaptura, onValueChange = { longitudCaptura = it }, label = { Text("Longitud (pulg)") }, modifier = Modifier.weight(1f))
+                    }
+
+                    Button(onClick = { multiPickerLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)) {
+                        Icon(Icons.Default.AddAPhoto, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Añadir Fotos")
+                    }
+
+                    if (bitmapsCaptura.isNotEmpty()) {
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            bitmapsCaptura.forEachIndexed { index, bmp ->
+                                Box {
+                                    Image(bitmap = bmp.asImageBitmap(), null, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                                    IconButton(onClick = { bitmapsCaptura.removeAt(index) }, modifier = Modifier.size(20.dp).align(Alignment.TopEnd).background(Color.White.copy(0.7f), CircleShape)) {
+                                        Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp), tint = Color.Red)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (guardandoCaptura) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        Text("Guardando y subiendo fotos...", modifier = Modifier.align(Alignment.CenterHorizontally), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalNombre = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura
+                        if (finalNombre.isNotBlank() && spotSeleccionado != null) {
+                            coroutineScope.launch {
+                                guardandoCaptura = true
+                                try {
+                                    val uploadedUrls = mutableListOf<String>()
+                                    bitmapsCaptura.forEach { bmp ->
+                                        val baos = ByteArrayOutputStream()
+                                        bmp.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+                                        val data = baos.toByteArray()
+                                        val ref = storage.reference.child("capturas/${UUID.randomUUID()}.jpg")
+                                        ref.putBytes(data).await()
+                                        uploadedUrls.add(ref.downloadUrl.await().toString())
+                                    }
+
+                                    val clima = datosClima
+                                    val pressureInHg = clima?.main?.pressure?.let { String.format(Locale.US, "%.2f", it.toDouble() * 0.02953) } ?: "N/A"
+                                    
+                                    val recordData = hashMapOf(
+                                        "nombrePez" to finalNombre,
+                                        "fishId" to fichaSeleccionada?.id,
+                                        "spotId" to spotSeleccionado!!.id,
+                                        "peso" to pesoCaptura,
+                                        "longitud" to longitudCaptura,
+                                        "fecha" to java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(java.util.Date()),
+                                        "fotosUrls" to uploadedUrls,
+                                        "climaTemp" to (clima?.main?.temp?.toInt()?.toString()?.plus("°F") ?: "N/A"),
+                                        "climaWind" to (clima?.wind?.speed?.toInt()?.toString()?.plus(" mph") ?: "N/A"),
+                                        "climaPressure" to (pressureInHg + " inHg"),
+                                        "climaTide" to "Subiendo (Auto)", // Simplificado
+                                        "timestamp" to com.google.firebase.Timestamp.now()
+                                    )
+
+                                    if (recordParaEditarCaptura == null) {
+                                        db.collection("mis_records").add(recordData).await()
+                                    } else {
+                                        db.collection("mis_records").document(recordParaEditarCaptura!!.id).update(recordData as Map<String, Any>).await()
+                                    }
+                                    bitmapsCaptura.clear()
+                                    nombrePezCaptura = ""; pesoCaptura = ""; longitudCaptura = ""; fichaSeleccionada = null
+                                    recordParaEditarCaptura = null
+                                    mostrarDialogoCaptura = false
+                                    Toast.makeText(context, "Captura registrada con éxito", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    guardandoCaptura = false
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, "Indica el nombre del pez", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = !guardandoCaptura
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoCaptura = false }, enabled = !guardandoCaptura) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (fotoAmpliadaUrl != null) {
+        Dialog(onDismissRequest = { fotoAmpliadaUrl = null }) {
+            Box(modifier = Modifier.fillMaxSize().clickable { fotoAmpliadaUrl = null }, contentAlignment = Alignment.Center) {
+                AsyncImage(
+                    model = fotoAmpliadaUrl, 
+                    contentDescription = null, 
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)), 
+                    contentScale = ContentScale.Fit
+                )
             }
         }
     }
