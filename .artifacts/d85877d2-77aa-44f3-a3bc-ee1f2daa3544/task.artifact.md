@@ -1,0 +1,5 @@
+- `[x]` Add state and Firestore listener for community pins in `MapaPescapr`
+- `[x]` Wrap `GoogleMap` in a `Box` and add the "Mis Pines"/"Comunidad" toggle UI
+- `[x]` Update `GoogleMap` marker rendering to support toggling between local and community pins
+- `[x]` Add Firestore upload logic when saving a new spot
+- `[x]` Verify changes build and run correctly

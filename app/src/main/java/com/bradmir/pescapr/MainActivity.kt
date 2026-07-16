@@ -17,8 +17,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -275,6 +275,14 @@ fun MainTabsScreen(database: AppDatabase) {
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
+                    // v1.5
+                    VersionNote(
+                        version = "v1.5",
+                        changes = listOf(
+                            "Mejoras de Guía Oficial: Tamaños de imágenes mejoradas para una mejor vista.",
+                            "Pines de Comunidad: Sección de pines privados y pines púbicos en el mapa."
+                        )
+                    )
                     // v1.4
                     VersionNote(
                         version = "v1.4",
@@ -512,6 +520,9 @@ fun PantallaGuiaOficialTab() {
     var mostrarDialogoNueva by remember { mutableStateOf(false) }
     var fichaParaEditar by remember { mutableStateOf<FichaPez?>(null) }
     var subiendo by remember { mutableStateOf(false) }
+    
+    // Estado para ver detalles (Read-only)
+    var fichaSeleccionadaDetalle by remember { mutableStateOf<FichaPez?>(null) }
 
     // Campos del formulario (estables fuera del bloque del diálogo)
     var nombreCientifico by remember { mutableStateOf("") }
@@ -598,14 +609,18 @@ fun PantallaGuiaOficialTab() {
         LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(fichas) { ficha ->
                 Card(
-                    modifier = Modifier.fillMaxWidth().height(180.dp).clickable(enabled = esDeveloper) {
-                        fichaParaEditar = ficha
-                        mostrarDialogoNueva = true
+                    modifier = Modifier.fillMaxWidth().height(180.dp).clickable {
+                        if (esDeveloper) {
+                            fichaParaEditar = ficha
+                            mostrarDialogoNueva = true
+                        } else {
+                            fichaSeleccionadaDetalle = ficha
+                        }
                     }, 
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Box {
-                        AsyncImage(model = ficha.fotosUrls.firstOrNull(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        AsyncImage(model = ficha.fotosUrls.firstOrNull(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(0.3f)))
                         Column(modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)) {
                             Text(ficha.nombreComun, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
@@ -953,6 +968,84 @@ fun PantallaGuiaOficialTab() {
         }
     }
 
+    if (fichaSeleccionadaDetalle != null) {
+        val ficha = fichaSeleccionadaDetalle!!
+        Dialog(onDismissRequest = { fichaSeleccionadaDetalle = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    // Header con botón cerrar
+                    Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                        if (ficha.fotosUrls.isNotEmpty()) {
+                            PhotoCarousel(urls = ficha.fotosUrls, modifier = Modifier.fillMaxSize())
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize().background(Color.LightGray), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Image, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+                            }
+                        }
+                        
+                        IconButton(onClick = { fichaSeleccionadaDetalle = null }, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).background(Color.Black.copy(0.5f), CircleShape)) {
+                            Icon(Icons.Default.Close, null, tint = Color.White)
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column {
+                            Text(ficha.nombreComun, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                            if (ficha.nombreIngles.isNotBlank()) {
+                                Text(ficha.nombreIngles, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+                            }
+                            Text(ficha.nombreCientifico, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                        }
+
+                        HorizontalDivider()
+
+                        // Regulaciones
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Recreativa", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                    Text(ficha.regulacionRecreativa, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f))) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Comercial", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                    Text(ficha.regulacionComercial, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+
+                        // Características
+                        if (ficha.caracteristicas.isNotEmpty()) {
+                            Text("Características Clave", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            ficha.caracteristicas.forEach { char ->
+                                Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(start = 8.dp)) {
+                                    Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Text(char, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+
+                        // Confusión
+                        if (ficha.puedeSerConfundidoCon.isNotBlank()) {
+                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)), border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))) {
+                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text("Se puede confundir con:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                        Text(ficha.puedeSerConfundidoCon, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(80.dp))
+                    }
+                }
+            }
+        }
+    }
 }
 
 // --- ENGINE: MATCHING CON GEMINI ---
@@ -1151,7 +1244,11 @@ fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {})
                                                                 fecha = record.fecha,
                                                                 fotosUrls = record.fotosUrls,
                                                                 spotId = spotIdInt,
-                                                                fishId = record.fishId
+                                                                fishId = record.fishId,
+                                                                climaTemp = record.climaTemp,
+                                                                climaWind = record.climaWind,
+                                                                climaPressure = record.climaPressure,
+                                                                climaTide = record.climaTide
                                                             )
                                                             recordDao.deleteRecord(entity)
                                                         } catch (e: Exception) {
@@ -1308,8 +1405,27 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
     val cameraPositionState = rememberCameraPositionState { position = CameraPosition.fromLatLngZoom(LatLng(18.2208, -66.5901), 9f) }
 
     val misPuntos = remember { mutableStateListOf<PuntoPesca>() }
+    val pinesComunidad = remember { mutableStateListOf<PuntoPesca>() }
+    var verPinesComunidad by remember { mutableStateOf(false) }
     var spotSeleccionado by remember { mutableStateOf<PuntoPesca?>(null) }
     var mostrarSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(verPinesComunidad) {
+        if (verPinesComunidad) {
+            db.collection("pines_publicos").addSnapshotListener { snap, _ ->
+                pinesComunidad.clear()
+                snap?.documents?.mapNotNull { doc ->
+                    PuntoPesca(
+                        id = doc.id,
+                        coordenada = LatLng(doc.getDouble("lat") ?: 0.0, doc.getDouble("lng") ?: 0.0),
+                        nombre = doc.getString("nombre") ?: "",
+                        descripcion = doc.getString("descripcion") ?: "",
+                        fotosUrls = emptyList()
+                    )
+                }?.let { pinesComunidad.addAll(it) }
+            }
+        }
+    }
 
     // --- NUEVOS PUNTOS ---
     var mostrarDialogoNuevoPunto by remember { mutableStateOf(false) }
@@ -1444,35 +1560,57 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
         }
     }
 
-    GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = cameraPositionState,
-        properties = MapProperties(isMyLocationEnabled = hasLocationPermission, mapType = MapType.SATELLITE),
-        onMapLongClick = { latLng ->
-            nuevaCoordenada = latLng
-            nombreNuevoPunto = ""
-            descripcionNuevoPunto = ""
-            mostrarDialogoNuevoPunto = true
-        }
-    ) {
-        misPuntos.forEach { spot ->
-            Marker(
-                state = MarkerState(position = spot.coordenada), 
-                title = spot.nombre, 
-                onClick = { spotSeleccionado = spot; mostrarSheet = true; true },
-                icon = remember(context) {
-                    try {
-                        val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.pin_pescapr)
-                        if (bitmap != null) {
-                            val scaled = bitmap.scale(100, 100, true)
-                            BitmapDescriptorFactory.fromBitmap(scaled)
-                        } else null
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
+    Box(modifier = Modifier.fillMaxSize()) {
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            properties = MapProperties(isMyLocationEnabled = hasLocationPermission, mapType = MapType.SATELLITE),
+            onMapLongClick = { latLng ->
+                nuevaCoordenada = latLng
+                nombreNuevoPunto = ""
+                descripcionNuevoPunto = ""
+                mostrarDialogoNuevoPunto = true
+            }
+        ) {
+            val listaAMostrar = if (verPinesComunidad) pinesComunidad else misPuntos
+            listaAMostrar.forEach { spot ->
+                Marker(
+                    state = MarkerState(position = spot.coordenada),
+                    title = spot.nombre,
+                    onClick = { spotSeleccionado = spot; mostrarSheet = true; true },
+                    icon = if (verPinesComunidad) {
+                        BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                    } else {
+                        remember(context) {
+                            try {
+                                val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.pin_pescapr)
+                                if (bitmap != null) {
+                                    val scaled = bitmap.scale(100, 100, true)
+                                    BitmapDescriptorFactory.fromBitmap(scaled)
+                                } else null
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                null
+                            }
+                        }
                     }
-                }
-            )
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp)
+                .background(MaterialTheme.colorScheme.surface.copy(0.9f), RoundedCornerShape(24.dp))
+                .padding(4.dp)
+        ) {
+            TextButton(onClick = { verPinesComunidad = false }) {
+                Text("Mis Pines", color = if (!verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+            }
+            TextButton(onClick = { verPinesComunidad = true }) {
+                Text("Comunidad", color = if (verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+            }
         }
     }
 
@@ -1802,6 +1940,15 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                                         fotosUrls = emptyList()
                                     )
                                     spotDao.insertSpot(entity)
+                                    
+                                    // Subir a la comunidad
+                                    db.collection("pines_publicos").add(hashMapOf(
+                                        "lat" to coords.latitude,
+                                        "lng" to coords.longitude,
+                                        "nombre" to nombreNuevoPunto,
+                                        "descripcion" to descripcionNuevoPunto
+                                    ))
+
                                     mostrarDialogoNuevoPunto = false
                                     Toast.makeText(context, "Spot guardado localmente", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
@@ -1987,5 +2134,70 @@ fun ActionBtn(icon: ImageVector, label: String, color: Color = MaterialTheme.col
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconButton(onClick = onClick) { Icon(icon, null, tint = color) }
         Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PhotoCarousel(
+    urls: List<String>,
+    modifier: Modifier = Modifier
+) {
+    val pagerState = rememberPagerState(pageCount = { urls.size })
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(modifier = modifier) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(urls[page])
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Foto ${page + 1} de ${urls.size}",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+                placeholder = painterResource(id = R.drawable.logo_small),
+                error = painterResource(id = R.drawable.logo_small)
+            )
+        }
+
+        if (urls.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(urls.size) { i ->
+                    val isSelected = pagerState.currentPage == i
+                    val color by animateColorAsState(
+                        targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                        label = "dotColor"
+                    )
+                    val dotWidth by animateDpAsState(
+                        targetValue = if (isSelected) 12.dp else 6.dp,
+                        label = "dotWidth"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(width = dotWidth, height = 6.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(i)
+                                }
+                            }
+                    )
+                }
+            }
+        }
     }
 }
