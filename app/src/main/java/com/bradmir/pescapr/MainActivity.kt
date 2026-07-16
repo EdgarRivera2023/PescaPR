@@ -184,16 +184,22 @@ fun MainTabsScreen() {
     
     // Foco para navegación desde Récords -> Mapa
     var spotIdAFocar by remember { mutableStateOf<String?>(null) }
+    var mostrarDialogoAcercaDe by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Image(painter = painterResource(id = R.drawable.logo_small), contentDescription = null, modifier = Modifier.size(40.dp))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(text = "PescaPR", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
+                Image(painter = painterResource(id = R.drawable.logo_small), contentDescription = null, modifier = Modifier.size(40.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = "PescaPR", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = { mostrarDialogoAcercaDe = true }) {
+                Icon(Icons.Default.Info, contentDescription = "Acerca de", tint = MaterialTheme.colorScheme.primary)
+            }
         }
 
         TabRow(selectedTabIndex = pagerState.currentPage) {
@@ -215,6 +221,89 @@ fun MainTabsScreen() {
                     spotIdAFocar = id
                     coroutineScope.launch { pagerState.animateScrollToPage(0) }
                 })
+            }
+        }
+    }
+
+    if (mostrarDialogoAcercaDe) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoAcercaDe = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.8f),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(painter = painterResource(id = R.drawable.logo_small), contentDescription = null, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Acerca de PescaPR")
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Versión ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Tu compañero de pesca en Puerto Rico. Identificación de especies con IA, mapa de spots y registro de capturas.")
+                        Text("Desarrollado por: Bradmir Consulting / Edgar Rivera", style = MaterialTheme.typography.labelSmall)
+                        Text("Potenciado por Google Gemini AI.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+
+                    HorizontalDivider()
+                    
+                    Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+
+                    // v1.2
+                    VersionNote(
+                        version = "v1.2",
+                        changes = listOf(
+                            "Integración avanzada de capturas con el Mapa.",
+                            "Registro de clima automático (Temp, Viento, Presión, Marea).",
+                            "Gestión de fotos del spot (límite de 4 fotos).",
+                            "Navegación directa de Récords a ubicación en Mapa."
+                        )
+                    )
+
+                    // v1.1
+                    VersionNote(
+                        version = "v1.1",
+                        changes = listOf(
+                            "Nueva sección 'Acerca de' con notas de versión.",
+                            "Mejoras en la fluidez de la interfaz de usuario.",
+                            "Corrección de errores en la base de datos Firestore."
+                        )
+                    )
+
+                    // v1.0
+                    VersionNote(
+                        version = "v1.0",
+                        changes = listOf(
+                            "Identificación de peces con Inteligencia Artificial.",
+                            "Mapa de spots de pesca compartidos.",
+                            "Guía oficial de regulaciones autogestionada."
+                        )
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            },
+            confirmButton = {
+                Button(onClick = { mostrarDialogoAcercaDe = false }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun VersionNote(version: String, changes: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(version, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+        changes.forEach { change ->
+            Row(modifier = Modifier.padding(start = 8.dp)) {
+                Text("• ", fontWeight = FontWeight.Bold)
+                Text(change, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
