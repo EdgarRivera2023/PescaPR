@@ -1,5 +1,6 @@
 package com.bradmir.pescapr
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -94,6 +95,8 @@ import retrofit2.http.Query
 import retrofit2.http.GET
 import com.google.gson.annotations.SerializedName
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import java.util.Locale
 import kotlin.math.cos
@@ -101,7 +104,7 @@ import kotlin.math.sin
 
 // --- 1. MODELOS DE DATOS ---
 data class PuntoPesca(
-    val id: String = "",
+    val id: String = "0", // Local Room ID as String
     val coordenada: LatLng = LatLng(0.0, 0.0),
     val nombre: String = "",
     val descripcion: String = "",
@@ -132,14 +135,14 @@ data class ResultadoIdentificacion(
 )
 
 data class RecordPesca(
-    val id: String = "",
+    val id: String = "0", // Local Room ID as String
     val nombrePez: String = "",
     val peso: String = "",
     val longitud: String = "",
     val lugar: String = "",
     val fecha: String = "",
     val fotosUrls: List<String> = emptyList(),
-    val spotId: String = "",
+    val spotId: String = "0", // Local Spot ID as String
     val fishId: String? = null,
     val climaTemp: String = "",
     val climaWind: String = "",
@@ -168,16 +171,35 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
+            val context = LocalContext.current
+            val database = remember { AppDatabase.getDatabase(context) }
+            
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                MainTabsScreen()
+                MainTabsScreen(database)
             }
         }
     }
 }
 
+fun saveImageToInternalStorage(context: Context, bitmap: Bitmap, folder: String): String? {
+    return try {
+        val filename = "${UUID.randomUUID()}.jpg"
+        val directory = File(context.filesDir, folder)
+        if (!directory.exists()) directory.mkdirs()
+        val file = File(directory, filename)
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        file.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MainTabsScreen() {
+fun MainTabsScreen(database: AppDatabase) {
     val tabs = listOf("Mapa", "Identificar", "Guía Official", "Mis Récords")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
@@ -214,10 +236,10 @@ fun MainTabsScreen() {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), userScrollEnabled = false) { page ->
             when (page) {
-                0 -> PantallaMapaTab(spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
+                0 -> PantallaMapaTab(database = database, spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
                 1 -> PantallaIdentificadorYRegulacionesTab()
                 2 -> PantallaGuiaOficialTab()
-                3 -> PantallaRecordsTab(onIrALugar = { id -> 
+                3 -> PantallaRecordsTab(database = database, onIrALugar = { id -> 
                     spotIdAFocar = id
                     coroutineScope.launch { pagerState.animateScrollToPage(0) }
                 })
@@ -252,6 +274,17 @@ fun MainTabsScreen() {
                     HorizontalDivider()
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+
+                    // v1.3
+                    VersionNote(
+                        version = "v1.3",
+                        changes = listOf(
+                            "Privacidad Total: Spots y récords ahora se guardan localmente (Room).",
+                            "Bitácora Personal: Cada usuario tiene sus propios datos privados.",
+                            "Fotos Locales: Las fotos se guardan en el dispositivo (sin internet).",
+                            "Persistencia: Datos protegidos durante actualizaciones del app."
+                        )
+                    )
 
                     // v1.2
                     VersionNote(
@@ -311,8 +344,8 @@ fun VersionNote(version: String, changes: List<String>) {
 
 // --- TAB 1: MAPA ---
 @Composable
-fun PantallaMapaTab(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
-    MapaPescapr(spotIdAFocar = spotIdAFocar, onFocoLogrado = onFocoLogrado)
+fun PantallaMapaTab(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
+    MapaPescapr(database = database, spotIdAFocar = spotIdAFocar, onFocoLogrado = onFocoLogrado)
 }
 
 // --- TAB 2: IDENTIFICADOR (Matching with Cards) ---
@@ -999,8 +1032,9 @@ suspend fun ejecutarMatchingConFichas(db: FirebaseFirestore, userImage: Bitmap):
 
 // --- TAB 4: MIS RÉCORDS ---
 @Composable
-fun PantallaRecordsTab(onIrALugar: (String) -> Unit = {}) {
-    val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
+fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {}) {
+    val recordDao = remember { database.recordDao() }
+    val coroutineScope = rememberCoroutineScope()
     val records = remember { mutableStateListOf<RecordPesca>() }
     val spots = remember { mutableStateMapOf<String, String>() } // spotId -> spotNombre
 
@@ -1009,30 +1043,27 @@ fun PantallaRecordsTab(onIrALugar: (String) -> Unit = {}) {
     var mostrarDialogoEdit by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        // Cargar nombres de spots para referencia
-        db.collection("spots").get().addOnSuccessListener { snap ->
-            snap.documents.forEach { doc ->
-                spots[doc.id] = doc.getString("nombre") ?: "Ubicación desconocida"
-            }
+        database.spotDao().getAllSpots().collect { entities ->
+            entities.forEach { spots[it.id.toString()] = it.nombre }
         }
-
-        db.collection("mis_records").addSnapshotListener { snap, _ ->
+    }
+    
+    LaunchedEffect(Unit) {
+        recordDao.getAllRecords().collect { entities ->
             records.clear()
-            snap?.documents?.forEach { doc ->
-                records.add(
-                    RecordPesca(
-                        id = doc.id,
-                        nombrePez = doc.getString("nombrePez") ?: "",
-                        peso = doc.getString("peso") ?: "",
-                        longitud = doc.getString("longitud") ?: "",
-                        lugar = doc.getString("lugar") ?: "",
-                        fecha = doc.getString("fecha") ?: "",
-                        spotId = doc.getString("spotId") ?: "",
-                        fishId = doc.getString("fishId"),
-                        fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
-                    )
+            records.addAll(entities.map { entity ->
+                RecordPesca(
+                    id = entity.id.toString(),
+                    nombrePez = entity.nombrePez,
+                    peso = entity.peso,
+                    longitud = entity.longitud,
+                    lugar = entity.lugar,
+                    fecha = entity.fecha,
+                    spotId = entity.spotId.toString(),
+                    fishId = entity.fishId,
+                    fotosUrls = entity.fotosUrls
                 )
-            }
+            })
         }
     }
 
@@ -1095,7 +1126,20 @@ fun PantallaRecordsTab(onIrALugar: (String) -> Unit = {}) {
                                                     Icon(Icons.Default.Edit, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                                                 }
                                                 IconButton(onClick = {
-                                                    db.collection("mis_records").document(record.id).delete()
+                                                    coroutineScope.launch {
+                                                        val entity = RecordEntity(
+                                                            id = record.id.toInt(),
+                                                            nombrePez = record.nombrePez,
+                                                            peso = record.peso,
+                                                            longitud = record.longitud,
+                                                            lugar = record.lugar,
+                                                            fecha = record.fecha,
+                                                            fotosUrls = record.fotosUrls,
+                                                            spotId = record.spotId.toInt(),
+                                                            fishId = record.fishId
+                                                        )
+                                                        recordDao.deleteRecord(entity)
+                                                    }
                                                 }, modifier = Modifier.size(24.dp)) {
                                                     Icon(Icons.Default.Delete, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
                                                 }
@@ -1139,9 +1183,19 @@ fun PantallaRecordsTab(onIrALugar: (String) -> Unit = {}) {
             confirmButton = {
                 Button(onClick = {
                     guardando = true
-                    db.collection("mis_records").document(recordParaEditar!!.id).update(
-                        mapOf("nombrePez" to nombrePez, "peso" to peso, "longitud" to longitud)
-                    ).addOnCompleteListener {
+                    coroutineScope.launch {
+                        val entity = RecordEntity(
+                            id = recordParaEditar!!.id.toInt(),
+                            nombrePez = nombrePez,
+                            peso = peso,
+                            longitud = longitud,
+                            lugar = recordParaEditar!!.lugar,
+                            fecha = recordParaEditar!!.fecha,
+                            fotosUrls = recordParaEditar!!.fotosUrls,
+                            spotId = recordParaEditar!!.spotId.toInt(),
+                            fishId = recordParaEditar!!.fishId
+                        )
+                        recordDao.updateRecord(entity)
                         guardando = false
                         mostrarDialogoEdit = false
                     }
@@ -1210,10 +1264,11 @@ fun WeatherInfoItem(icon: ImageVector, value: String, label: String, tintOverrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
+fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
     val context = LocalContext.current
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
-    val storage = remember { FirebaseStorage.getInstance() }
+    val spotDao = remember { database.spotDao() }
+    val recordDao = remember { database.recordDao() }
     val coroutineScope = rememberCoroutineScope()
 
     var hasLocationPermission by remember { mutableStateOf(androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
@@ -1285,26 +1340,26 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
     LaunchedEffect(spotSeleccionado) {
         spotSeleccionado?.let { spot ->
             cargandoCapturas = true
-            db.collection("mis_records")
-                .whereEqualTo("spotId", spot.id)
-                .addSnapshotListener { snap, _ ->
-                    capturasSpot.clear()
-                    snap?.documents?.mapNotNull { doc ->
-                        RecordPesca(
-                            id = doc.id,
-                            nombrePez = doc.getString("nombrePez") ?: "",
-                            peso = doc.getString("peso") ?: "",
-                            longitud = doc.getString("longitud") ?: "",
-                            fecha = doc.getString("fecha") ?: "",
-                            fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList(),
-                            climaTemp = doc.getString("climaTemp") ?: "",
-                            climaWind = doc.getString("climaWind") ?: "",
-                            climaPressure = doc.getString("climaPressure") ?: "",
-                            climaTide = doc.getString("climaTide") ?: ""
-                        )
-                    }?.let { capturasSpot.addAll(it) }
-                    cargandoCapturas = false
-                }
+            recordDao.getRecordsBySpot(spot.id.toInt()).collect { entities ->
+                capturasSpot.clear()
+                capturasSpot.addAll(entities.map { entity ->
+                    RecordPesca(
+                        id = entity.id.toString(),
+                        nombrePez = entity.nombrePez,
+                        peso = entity.peso,
+                        longitud = entity.longitud,
+                        fecha = entity.fecha,
+                        fotosUrls = entity.fotosUrls,
+                        climaTemp = entity.climaTemp,
+                        climaWind = entity.climaWind,
+                        climaPressure = entity.climaPressure,
+                        climaTide = entity.climaTide,
+                        spotId = entity.spotId.toString(),
+                        fishId = entity.fishId
+                    )
+                })
+                cargandoCapturas = false
+            }
         }
     }
     
@@ -1331,15 +1386,19 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
         }
     }
 
-    DisposableEffect(Unit) {
-        val l = db.collection("spots").addSnapshotListener { snap, _ ->
+    LaunchedEffect(Unit) {
+        spotDao.getAllSpots().collect { entities ->
             misPuntos.clear()
-            snap?.documents?.mapNotNull { doc ->
-                val urls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
-                PuntoPesca(doc.id, LatLng(doc.getDouble("latitud") ?: 0.0, doc.getDouble("longitud") ?: 0.0), doc.getString("nombre") ?: "", doc.getString("descripcion") ?: "", urls)
-            }?.let { misPuntos.addAll(it) }
+            misPuntos.addAll(entities.map { entity ->
+                PuntoPesca(
+                    id = entity.id.toString(),
+                    coordenada = LatLng(entity.latitud, entity.longitud),
+                    nombre = entity.nombre,
+                    descripcion = entity.descripcion,
+                    fotosUrls = entity.fotosUrls
+                )
+            })
         }
-        onDispose { l?.remove() }
     }
 
     LaunchedEffect(spotIdAFocar, misPuntos.size) {
@@ -1394,15 +1453,30 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
                 coroutineScope.launch {
                     subiendoFotoSpot = true
                     try {
-                        val ref = storage.reference.child("spots/${spotSeleccionado?.id}/${UUID.randomUUID()}.jpg")
-                        ref.putFile(it).await()
-                        val url = ref.downloadUrl.await().toString()
-                        db.collection("spots").document(spotSeleccionado!!.id)
-                            .update("fotosUrls", FieldValue.arrayUnion(url)).await()
-                        Toast.makeText(context, "Foto añadida", Toast.LENGTH_SHORT).show()
+                        val stream = context.contentResolver.openInputStream(it)
+                        val bmp = BitmapFactory.decodeStream(stream)
+                        if (bmp != null) {
+                            val localPath = saveImageToInternalStorage(context, bmp, "spots")
+                            if (localPath != null) {
+                                val spotActual = misPuntos.find { it.id == spotSeleccionado?.id } ?: spotSeleccionado
+                                val currentFotos = spotActual!!.fotosUrls.toMutableList()
+                                currentFotos.add(localPath)
+                                
+                                val entity = SpotEntity(
+                                    id = spotActual.id.toInt(),
+                                    nombre = spotActual.nombre,
+                                    descripcion = spotActual.descripcion,
+                                    latitud = spotActual.coordenada.latitude,
+                                    longitud = spotActual.coordenada.longitude,
+                                    fotosUrls = currentFotos
+                                )
+                                spotDao.updateSpot(entity)
+                                Toast.makeText(context, "Foto añadida localmente", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        Toast.makeText(context, "Error al subir foto", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Error al guardar foto", Toast.LENGTH_SHORT).show()
                     } finally {
                         subiendoFotoSpot = false
                     }
@@ -1482,8 +1556,22 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
                                     onClick = {
                                         coroutineScope.launch {
                                             try {
-                                                db.collection("spots").document(spotActual!!.id)
-                                                    .update("fotosUrls", FieldValue.arrayRemove(url)).await()
+                                                val currentFotos = spotActual!!.fotosUrls.toMutableList()
+                                                currentFotos.remove(url)
+                                                
+                                                val entity = SpotEntity(
+                                                    id = spotActual.id.toInt(),
+                                                    nombre = spotActual.nombre,
+                                                    descripcion = spotActual.descripcion,
+                                                    latitud = spotActual.coordenada.latitude,
+                                                    longitud = spotActual.coordenada.longitude,
+                                                    fotosUrls = currentFotos
+                                                )
+                                                spotDao.updateSpot(entity)
+                                                
+                                                // Opcional: Eliminar el archivo físico
+                                                try { File(url).delete() } catch (e: Exception) {}
+                                                
                                                 Toast.makeText(context, "Foto eliminada", Toast.LENGTH_SHORT).show()
                                             } catch (e: Exception) {
                                                 Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
@@ -1552,7 +1640,26 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
                                         IconButton(onClick = {
                                             coroutineScope.launch {
                                                 try {
-                                                    db.collection("mis_records").document(record.id).delete().await()
+                                                    val entity = RecordEntity(
+                                                        id = record.id.toInt(),
+                                                        nombrePez = record.nombrePez,
+                                                        peso = record.peso,
+                                                        longitud = record.longitud,
+                                                        lugar = record.lugar,
+                                                        fecha = record.fecha,
+                                                        fotosUrls = record.fotosUrls,
+                                                        spotId = record.spotId.toInt(),
+                                                        fishId = record.fishId,
+                                                        climaTemp = record.climaTemp,
+                                                        climaWind = record.climaWind,
+                                                        climaPressure = record.climaPressure,
+                                                        climaTide = record.climaTide
+                                                    )
+                                                    recordDao.deleteRecord(entity)
+                                                    
+                                                    // Opcional: Eliminar fotos locales
+                                                    record.fotosUrls.forEach { path -> try { File(path).delete() } catch (e: Exception) {} }
+                                                    
                                                     Toast.makeText(context, "Captura eliminada", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -1649,16 +1756,16 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
                             coroutineScope.launch {
                                 guardandoPunto = true
                                 try {
-                                    val nuevoDoc = hashMapOf(
-                                        "nombre" to nombreNuevoPunto,
-                                        "descripcion" to descripcionNuevoPunto,
-                                        "latitud" to nuevaCoordenada!!.latitude,
-                                        "longitud" to nuevaCoordenada!!.longitude,
-                                        "fotosUrls" to emptyList<String>()
+                                    val entity = SpotEntity(
+                                        nombre = nombreNuevoPunto,
+                                        descripcion = descripcionNuevoPunto,
+                                        latitud = nuevaCoordenada!!.latitude,
+                                        longitud = nuevaCoordenada!!.longitude,
+                                        fotosUrls = emptyList()
                                     )
-                                    db.collection("spots").add(nuevoDoc).await()
+                                    spotDao.insertSpot(entity)
                                     mostrarDialogoNuevoPunto = false
-                                    Toast.makeText(context, "Spot guardado con éxito", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Spot guardado localmente", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                     Toast.makeText(context, "Error al guardar: ${e.message}", Toast.LENGTH_LONG).show()
@@ -1762,42 +1869,40 @@ fun MapaPescapr(spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
                                 try {
                                     val uploadedUrls = mutableListOf<String>()
                                     bitmapsCaptura.forEach { bmp ->
-                                        val baos = ByteArrayOutputStream()
-                                        bmp.compress(Bitmap.CompressFormat.JPEG, 80, baos)
-                                        val data = baos.toByteArray()
-                                        val ref = storage.reference.child("capturas/${UUID.randomUUID()}.jpg")
-                                        ref.putBytes(data).await()
-                                        uploadedUrls.add(ref.downloadUrl.await().toString())
+                                        val localPath = saveImageToInternalStorage(context, bmp, "capturas")
+                                        if (localPath != null) uploadedUrls.add(localPath)
                                     }
 
                                     val clima = datosClima
                                     val pressureInHg = clima?.main?.pressure?.let { String.format(Locale.US, "%.2f", it.toDouble() * 0.02953) } ?: "N/A"
                                     
-                                    val recordData = hashMapOf(
-                                        "nombrePez" to finalNombre,
-                                        "fishId" to fichaSeleccionada?.id,
-                                        "spotId" to spotSeleccionado!!.id,
-                                        "peso" to pesoCaptura,
-                                        "longitud" to longitudCaptura,
-                                        "fecha" to java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(java.util.Date()),
-                                        "fotosUrls" to uploadedUrls,
-                                        "climaTemp" to (clima?.main?.temp?.toInt()?.toString()?.plus("°F") ?: "N/A"),
-                                        "climaWind" to (clima?.wind?.speed?.toInt()?.toString()?.plus(" mph") ?: "N/A"),
-                                        "climaPressure" to (pressureInHg + " inHg"),
-                                        "climaTide" to "Subiendo (Auto)", // Simplificado
-                                        "timestamp" to com.google.firebase.Timestamp.now()
+                                    val entity = RecordEntity(
+                                        id = recordParaEditarCaptura?.id?.toInt() ?: 0,
+                                        nombrePez = finalNombre,
+                                        fishId = fichaSeleccionada?.id,
+                                        spotId = spotSeleccionado!!.id.toInt(),
+                                        peso = pesoCaptura,
+                                        longitud = longitudCaptura,
+                                        fecha = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(java.util.Date()),
+                                        fotosUrls = if (recordParaEditarCaptura != null) recordParaEditarCaptura!!.fotosUrls + uploadedUrls else uploadedUrls,
+                                        climaTemp = (clima?.main?.temp?.toInt()?.toString()?.plus("°F") ?: "N/A"),
+                                        climaWind = (clima?.wind?.speed?.toInt()?.toString()?.plus(" mph") ?: "N/A"),
+                                        climaPressure = (pressureInHg + " inHg"),
+                                        climaTide = "Subiendo (Auto)", // Simplificado
+                                        lugar = spotSeleccionado!!.nombre
                                     )
 
                                     if (recordParaEditarCaptura == null) {
-                                        db.collection("mis_records").add(recordData).await()
+                                        recordDao.insertRecord(entity)
                                     } else {
-                                        db.collection("mis_records").document(recordParaEditarCaptura!!.id).update(recordData as Map<String, Any>).await()
+                                        recordDao.updateRecord(entity)
                                     }
+                                    
                                     bitmapsCaptura.clear()
                                     nombrePezCaptura = ""; pesoCaptura = ""; longitudCaptura = ""; fichaSeleccionada = null
                                     recordParaEditarCaptura = null
                                     mostrarDialogoCaptura = false
-                                    Toast.makeText(context, "Captura registrada con éxito", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Captura registrada localmente", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
