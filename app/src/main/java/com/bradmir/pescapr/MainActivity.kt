@@ -33,6 +33,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -154,6 +156,37 @@ data class WeatherResponse(val main: MainData, val wind: WindData)
 data class MainData(val temp: Float, val pressure: Int)
 data class WindData(val speed: Float)
 
+// --- NOAA TIDES MODELS ---
+data class TidePrediction(
+    val t: String, // Time
+    val v: String, // Value
+    val type: String // H or L
+)
+data class NoaaTideResponse(val predictions: List<TidePrediction>?)
+
+// --- SUNRISE SUNSET MODELS ---
+data class SunriseSunsetResponse(val days: List<DayData>?, val status: String)
+data class DayData(val date: String, val sunrise: String, val sunset: String)
+
+data class GoldenPeak(
+    val date: String,
+    val time: String,
+    val type: String // "Amanecer" or "Atardecer"
+)
+
+data class TideStation(val id: String, val lat: Double, val lon: Double, val name: String)
+
+val NOAA_STATIONS_PR = listOf(
+    TideStation("9755371", 18.459, -66.116, "San Juan"),
+    TideStation("9753216", 18.335, -65.631, "Fajardo"),
+    TideStation("9759110", 17.971, -67.045, "Magueyes Island"),
+    TideStation("9752235", 18.301, -65.302, "Culebra"),
+    TideStation("9752695", 18.093, -65.470, "Vieques"),
+    TideStation("9754980", 17.970, -66.617, "Ponce"),
+    TideStation("9759394", 18.220, -67.158, "Mayaguez"),
+    TideStation("9757811", 18.480, -66.701, "Arecibo")
+)
+
 interface WeatherService {
     @GET("weather")
     suspend fun getWeather(
@@ -163,6 +196,32 @@ interface WeatherService {
         @Query("units") units: String = "imperial",
         @Query("lang") lang: String = "es"
     ): WeatherResponse
+}
+
+interface NoaaTideService {
+    @GET("api/prod/datagetter")
+    suspend fun getTidePredictions(
+        @Query("date") date: String? = null,
+        @Query("begin_date") beginDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+        @Query("station") station: String,
+        @Query("product") product: String = "predictions",
+        @Query("datum") datum: String = "mllw",
+        @Query("units") units: String = "english",
+        @Query("time_zone") timeZone: String = "lst_ldt",
+        @Query("format") format: String = "json",
+        @Query("interval") interval: String = "hilo"
+    ): NoaaTideResponse
+}
+
+interface SunriseSunsetService {
+    @GET("v2")
+    suspend fun getRange(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+        @Query("date_start") start: String,
+        @Query("date_end") end: String
+    ): SunriseSunsetResponse
 }
 
 // --- 2. ACTIVIDAD PRINCIPAL ---
@@ -275,9 +334,25 @@ fun MainTabsScreen(database: AppDatabase) {
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
+                    // v1.7
+                    VersionNote(
+                        version = "v1.7 - 7/22/2026",
+                        changes = listOf(
+                            "Mejoras de Guia Oficial: Ordenado por nombre científico.",
+                            "Identificación de Picos de Oro: Mejor dia de pesca en los próximos 30 días."
+                        )
+                    )
+                    // v1.6
+                    VersionNote(
+                        version = "v1.6 - 7/21/2026",
+                        changes = listOf(
+                            "Mejoras de Mapa: Vistas de alta resolución al hacer zoom, corregida.",
+                            "Mejoras de Signos Vitales del Spot: Manómetro de mareas más preciso."
+                        )
+                    )
                     // v1.5
                     VersionNote(
-                        version = "v1.5 7/17/2026",
+                        version = "v1.5 - 7/17/2026",
                         changes = listOf(
                             "Mejoras de Guía Oficial: Tamaños de imágenes mejoradas para una mejor vista.",
                             "Pines de Comunidad: Sección de pines privados y pines púbicos en el mapa."
@@ -562,9 +637,8 @@ fun PantallaGuiaOficialTab() {
                 error.printStackTrace()
                 return@addSnapshotListener
             }
-            fichas.clear()
-            snap?.documents?.forEach { doc ->
-                fichas.add(FichaPez(
+            val listaFichas = snap?.documents?.mapNotNull { doc ->
+                FichaPez(
                     id = doc.id,
                     nombreCientifico = doc.getString("nombreCientifico") ?: "",
                     nombreComun = doc.getString("nombreComun") ?: "",
@@ -574,8 +648,11 @@ fun PantallaGuiaOficialTab() {
                     caracteristicas = (doc.get("caracteristicas") as? List<*>)?.map { it.toString() } ?: emptyList(),
                     puedeSerConfundidoCon = doc.getString("puedeSerConfundidoCon") ?: "",
                     fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
-                ))
-            }
+                )
+            }?.sortedBy { it.nombreCientifico } ?: emptyList()
+            
+            fichas.clear()
+            fichas.addAll(listaFichas)
         }
         onDispose { listener?.remove() }
     }
@@ -1049,6 +1126,109 @@ fun PantallaGuiaOficialTab() {
 }
 
 // --- ENGINE: MATCHING CON GEMINI ---
+suspend fun findGoldenPeaks(
+    tideService: NoaaTideService,
+    sunService: SunriseSunsetService,
+    lat: Double,
+    lon: Double,
+    stationId: String
+): List<GoldenPeak> = withContext(Dispatchers.IO) {
+    val peaks = mutableListOf<GoldenPeak>()
+    val cal = java.util.Calendar.getInstance()
+    val sdfNoaa = java.text.SimpleDateFormat("yyyyMMdd", Locale.US)
+    val sdfSun = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    val sdfTideInput = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+    val sdfSunInput = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
+    val sdfOutput = java.text.SimpleDateFormat("h:mm a", Locale.US)
+    val sdfDateOutput = java.text.SimpleDateFormat("EEEE, d 'de' MMMM", Locale("es", "PR"))
+
+    val startStrNoaa = sdfNoaa.format(cal.time)
+    val startStrSun = sdfSun.format(cal.time)
+    
+    cal.add(java.util.Calendar.DAY_OF_YEAR, 30)
+    val endStrNoaa = sdfNoaa.format(cal.time)
+    val endStrSun = sdfSun.format(cal.time)
+
+    try {
+        val tideRes = tideService.getTidePredictions(beginDate = startStrNoaa, endDate = endStrNoaa, station = stationId)
+        val sunRes = sunService.getRange(lat = lat, lng = lon, start = startStrSun, end = endStrSun)
+
+        val highTides = tideRes.predictions?.filter { it.type == "H" } ?: emptyList()
+        val days = sunRes.days ?: emptyList()
+
+        highTides.forEach { tide ->
+            val tideDate = try { sdfTideInput.parse(tide.t) } catch(e: Exception) { null } ?: return@forEach
+            
+            // Buscar datos de sol para este día
+            val tideDayStr = sdfSun.format(tideDate)
+            val dayData = days.find { it.date == tideDayStr } ?: return@forEach
+            
+            val sunriseDate = try { sdfSunInput.parse(dayData.sunrise) } catch(e: Exception) { null }
+            val sunsetDate = try { sdfSunInput.parse(dayData.sunset) } catch(e: Exception) { null }
+            
+            if (sunriseDate != null && Math.abs(tideDate.time - sunriseDate.time) < 90 * 60 * 1000) {
+                peaks.add(GoldenPeak(sdfDateOutput.format(tideDate).replaceFirstChar { it.uppercase() }, sdfOutput.format(tideDate), "Amanecer"))
+            } else if (sunsetDate != null && Math.abs(tideDate.time - sunsetDate.time) < 90 * 60 * 1000) {
+                peaks.add(GoldenPeak(sdfDateOutput.format(tideDate).replaceFirstChar { it.uppercase() }, sdfOutput.format(tideDate), "Atardecer"))
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    
+    return@withContext peaks
+}
+
+fun findNearestTideStation(lat: Double, lon: Double): TideStation {
+    return NOAA_STATIONS_PR.minByOrNull { station ->
+        val dLat = Math.toRadians(station.lat - lat)
+        val dLon = Math.toRadians(station.lon - lon)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat)) * Math.cos(Math.toRadians(station.lat)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        6371 * c // Distance in km
+    } ?: NOAA_STATIONS_PR[0]
+}
+
+fun calculateTideFactor(predictions: List<TidePrediction>): Triple<Float, String, String> {
+    if (predictions.size < 2) return Triple(0.5f, "Sin datos", "")
+    
+    val now = java.util.Date()
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+    val timeFormatter = java.text.SimpleDateFormat("h:mm a", Locale.US)
+    
+    // Sort predictions by time
+    val sorted = predictions.mapNotNull { pred ->
+        try { sdf.parse(pred.t)?.let { it to pred } } catch (e: Exception) { null }
+    }.sortedBy { it.first }
+    
+    // Find where "now" sits
+    for (i in 0 until sorted.size - 1) {
+        val (p1Time, p1Data) = sorted[i]
+        val (p2Time, _) = sorted[i+1]
+        
+        if (now.after(p1Time) && now.before(p2Time)) {
+            val totalTime = p2Time.time - p1Time.time
+            val elapsedTime = now.time - p1Time.time
+            val progress = elapsedTime.toFloat() / totalTime.toFloat()
+            
+            val formattedNextTime = timeFormatter.format(p2Time)
+            
+            // Rising: Map 0.0-1.0 progress to 0.0-0.5 needle factor
+            // Falling: Map 0.0-1.0 progress to 0.5-1.0 needle factor
+            return if (p1Data.type == "L") {
+                Triple((progress * 0.5f), "Subiendo (${(progress * 100).toInt()}%)", formattedNextTime)
+            } else {
+                Triple((0.5f + progress * 0.5f), "Bajando (${(progress * 100).toInt()}%)", formattedNextTime)
+            }
+        }
+    }
+    
+    // If not between, use the closest or last state
+    return Triple(0.5f, "Estable", "")
+}
+
 suspend fun ejecutarMatchingConFichas(db: FirebaseFirestore, userImage: Bitmap): ResultadoIdentificacion = withContext(Dispatchers.IO) {
     try {
         val aiKey = BuildConfig.GEMINI_API_KEY
@@ -1334,36 +1514,62 @@ fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {})
 }
 
 @Composable
-fun RelojMareasCircular(valor: Float) {
+fun RelojMareasCircular(valor: Float, nextTime: String = "") {
     val valorAnimado by animateFloatAsState(targetValue = valor, animationSpec = tween(durationMillis = 1000))
 
     Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        if (nextTime.isNotEmpty()) {
+            val alignment = if (valor < 0.5f) Alignment.TopCenter else Alignment.BottomCenter
+            Text(
+                text = nextTime,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.align(alignment).padding(vertical = 4.dp)
+            )
+        }
+        
+        Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             val strokeWidth = 10f
             val canvasSize = size.minDimension
             val radius = canvasSize / 2f
             val center = Offset(size.width / 2f, size.height / 2f)
 
-            // Arco de fondo
+            // Arcos de fondo (según posiciones de reloj)
+            // Verde: 10 a 1 o'clock
             drawArc(
                 color = Color(0xFF4CAF50),
-                startAngle = 180f,
-                sweepAngle = 180f,
+                startAngle = 210f,
+                sweepAngle = 90f,
                 useCenter = false,
                 style = Stroke(strokeWidth, cap = StrokeCap.Round)
             )
+            // Naranja: 1 a 3 o'clock
+            drawArc(
+                color = Color(0xFFFF9800),
+                startAngle = 300f,
+                sweepAngle = 60f,
+                useCenter = false,
+                style = Stroke(strokeWidth)
+            )
+            // Rojo: 3 a 8 o'clock
             drawArc(
                 color = Color(0xFFF44336),
                 startAngle = 0f,
-                sweepAngle = 180f,
+                sweepAngle = 150f,
                 useCenter = false,
                 style = Stroke(strokeWidth, cap = StrokeCap.Round)
             )
+            // Naranja: 8 a 10 o'clock
+            drawArc(
+                color = Color(0xFFFF9800),
+                startAngle = 150f,
+                sweepAngle = 60f,
+                useCenter = false,
+                style = Stroke(strokeWidth)
+            )
 
-            drawCircle(Color(0xFF4CAF50), radius = 6f, center = Offset(center.x, center.y - radius))
-            drawCircle(Color(0xFFF44336), radius = 6f, center = Offset(center.x, center.y + radius))
-
-            val angle = -90f + (valorAnimado * 360f)
+            val angle = 90f + (valorAnimado * 360f)
             val angleRad = Math.toRadians(angle.toDouble())
             val lineLength = radius * 0.8f
             val endX = center.x + lineLength * cos(angleRad).toFloat()
@@ -1451,6 +1657,7 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
     var fichaSeleccionada by remember { mutableStateOf<FichaPez?>(null) }
     val bitmapsCaptura = remember { mutableStateListOf<Bitmap>() }
     var guardandoCaptura by remember { mutableStateOf(false) }
+    var analizandoIA by remember { mutableStateOf(false) }
     var expandedGuia by remember { mutableStateOf(false) }
 
     // Clima
@@ -1469,15 +1676,17 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
 
     LaunchedEffect(Unit) {
         db.collection("fichas_peces").addSnapshotListener { snap, _ ->
-            fichasGuia.clear()
-            snap?.documents?.mapNotNull { doc ->
+            val listaFichas = snap?.documents?.mapNotNull { doc ->
                 FichaPez(
                     id = doc.id,
                     nombreComun = doc.getString("nombreComun") ?: "",
                     nombreCientifico = doc.getString("nombreCientifico") ?: "",
                     fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
                 )
-            }?.let { fichasGuia.addAll(it) }
+            }?.sortedBy { it.nombreCientifico } ?: emptyList()
+            
+            fichasGuia.clear()
+            fichasGuia.addAll(listaFichas)
         }
     }
 
@@ -1513,6 +1722,24 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
             .addConverterFactory(GsonConverterFactory.create()).build().create(WeatherService::class.java)
     }
 
+    val tideService = remember {
+        Retrofit.Builder().baseUrl("https://api.tidesandcurrents.noaa.gov/")
+            .addConverterFactory(GsonConverterFactory.create()).build().create(NoaaTideService::class.java)
+    }
+
+    val sunService = remember {
+        Retrofit.Builder().baseUrl("https://api.sunrise-sunset.org/")
+            .addConverterFactory(GsonConverterFactory.create()).build().create(SunriseSunsetService::class.java)
+    }
+
+    var tideFactor by remember { mutableStateOf(0.5f) }
+    var tideDescription by remember { mutableStateOf("Selecciona un spot") }
+    var nextTideTime by remember { mutableStateOf("") }
+
+    var goldenPeaks by remember { mutableStateOf<List<GoldenPeak>>(emptyList()) }
+    var calculandoPicos by remember { mutableStateOf(false) }
+    var mostrarPicosDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(spotSeleccionado) {
         spotSeleccionado?.let { spot ->
             cargandoClima = true
@@ -1527,6 +1754,21 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                 datosClima = null
             } finally {
                 cargandoClima = false
+            }
+
+            try {
+                val station = findNearestTideStation(spot.coordenada.latitude, spot.coordenada.longitude)
+                val response = tideService.getTidePredictions(station = station.id)
+                response.predictions?.let { preds ->
+                    val (factor, desc, time) = calculateTideFactor(preds)
+                    tideFactor = factor
+                    tideDescription = desc
+                    nextTideTime = time
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                tideDescription = "Mareas no disp."
+                nextTideTime = ""
             }
         }
     }
@@ -1614,6 +1856,10 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
         }
     }
 
+    if (mostrarPicosDialog) {
+        DialogoPicosDeOro(peaks = goldenPeaks) { mostrarPicosDialog = false }
+    }
+
     if (mostrarSheet) {
         val photoPickerLauncherSpot = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
@@ -1672,6 +1918,40 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                     val pressureFormatted = String.format(Locale.US, "%.2f", pressureInHg)
                     
                     Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Signos Vitales del Spot",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        IconButton(
+                            onClick = {
+                                spotActual?.let { spot ->
+                                    coroutineScope.launch {
+                                        calculandoPicos = true
+                                        val station = findNearestTideStation(spot.coordenada.latitude, spot.coordenada.longitude)
+                                        goldenPeaks = findGoldenPeaks(tideService, sunService, spot.coordenada.latitude, spot.coordenada.longitude, station.id)
+                                        calculandoPicos = false
+                                        mostrarPicosDialog = true
+                                    }
+                                }
+                            },
+                            enabled = !calculandoPicos
+                        ) {
+                            if (calculandoPicos) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.AutoAwesome, "Encontrar Picos de Oro", tint = Color(0xFFFFD700))
+                            }
+                        }
+                    }
+
+                    Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer.copy(0.3f)).padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -1683,10 +1963,10 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            RelojMareasCircular(valor = 0.7f)
+                            RelojMareasCircular(valor = tideFactor, nextTime = nextTideTime)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("MAREA", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                            Text("Subiendo", style = MaterialTheme.typography.bodySmall)
+                            Text(tideDescription, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                         }
                     }
                 } else {
@@ -1991,35 +2271,12 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                 Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Ubicación: ${spotSeleccionado?.nombre}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     
-                    // Selección de Pez de la Guía
-                    Box {
-                        OutlinedTextField(
-                            value = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura,
-                            onValueChange = { nombrePezCaptura = it; fichaSeleccionada = null },
-                            label = { Text("Especie (Guía Oficial o Manual)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                IconButton(onClick = { expandedGuia = true }) {
-                                    Icon(Icons.Default.ArrowDropDown, null)
-                                }
-                            }
-                        )
-                        DropdownMenu(expanded = expandedGuia, onDismissRequest = { expandedGuia = false }, modifier = Modifier.fillMaxWidth(0.8f)) {
-                            fichasGuia.forEach { ficha ->
-                                DropdownMenuItem(
-                                    text = { Column { Text(ficha.nombreComun, fontWeight = FontWeight.Bold); Text(ficha.nombreCientifico, style = MaterialTheme.typography.labelSmall) } },
-                                    onClick = { fichaSeleccionada = ficha; expandedGuia = false }
-                                )
-                            }
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = pesoCaptura, onValueChange = { pesoCaptura = it }, label = { Text("Peso (lb/oz)") }, modifier = Modifier.weight(1f))
-                        OutlinedTextField(value = longitudCaptura, onValueChange = { longitudCaptura = it }, label = { Text("Longitud (pulg)") }, modifier = Modifier.weight(1f))
-                    }
-
-                    Button(onClick = { multiPickerLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)) {
+                    Button(
+                        onClick = { multiPickerLauncher.launch("image/*") }, 
+                        modifier = Modifier.fillMaxWidth(), 
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                        enabled = !analizandoIA && !guardandoCaptura
+                    ) {
                         Icon(Icons.Default.AddAPhoto, null)
                         Spacer(Modifier.width(8.dp))
                         Text("Añadir Fotos")
@@ -2030,11 +2287,92 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                             bitmapsCaptura.forEachIndexed { index, bmp ->
                                 Box {
                                     Image(bitmap = bmp.asImageBitmap(), null, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
-                                    IconButton(onClick = { bitmapsCaptura.removeAt(index) }, modifier = Modifier.size(20.dp).align(Alignment.TopEnd).background(Color.White.copy(0.7f), CircleShape)) {
+                                    IconButton(
+                                        onClick = { bitmapsCaptura.removeAt(index) }, 
+                                        modifier = Modifier.size(20.dp).align(Alignment.TopEnd).background(Color.White.copy(0.7f), CircleShape),
+                                        enabled = !analizandoIA && !guardandoCaptura
+                                    ) {
                                         Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp), tint = Color.Red)
                                     }
                                 }
                             }
+                        }
+
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    analizandoIA = true
+                                    val result = ejecutarMatchingConFichas(db, bitmapsCaptura.first())
+                                    if (!result.esError) {
+                                        val match = fichasGuia.find { it.nombreComun == result.nombreComun }
+                                        if (match != null) {
+                                            fichaSeleccionada = match
+                                            nombrePezCaptura = match.nombreComun
+                                        } else {
+                                            nombrePezCaptura = result.nombreComun
+                                            fichaSeleccionada = null
+                                        }
+                                        Toast.makeText(context, "Pez identificado: ${result.nombreComun}", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Error IA: ${result.nombreComun}", Toast.LENGTH_SHORT).show()
+                                    }
+                                    analizandoIA = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !analizandoIA && !guardandoCaptura,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        ) {
+                            if (analizandoIA) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onTertiary, strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Psychology, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Identificar con IA")
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        // Selección de Pez de la Guía
+                        Box {
+                            OutlinedTextField(
+                                value = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura,
+                                onValueChange = { nombrePezCaptura = it; fichaSeleccionada = null },
+                                label = { Text("Especie (Guía Oficial o Manual)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !analizandoIA && !guardandoCaptura,
+                                trailingIcon = {
+                                    IconButton(onClick = { expandedGuia = true }, enabled = !analizandoIA && !guardandoCaptura) {
+                                        Icon(Icons.Default.ArrowDropDown, null)
+                                    }
+                                }
+                            )
+                            DropdownMenu(expanded = expandedGuia, onDismissRequest = { expandedGuia = false }, modifier = Modifier.fillMaxWidth(0.8f)) {
+                                fichasGuia.forEach { ficha ->
+                                    DropdownMenuItem(
+                                        text = { Column { Text(ficha.nombreComun, fontWeight = FontWeight.Bold); Text(ficha.nombreCientifico, style = MaterialTheme.typography.labelSmall) } },
+                                        onClick = { fichaSeleccionada = ficha; expandedGuia = false }
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = pesoCaptura, 
+                                onValueChange = { pesoCaptura = it }, 
+                                label = { Text("Peso (lb/oz)") }, 
+                                modifier = Modifier.weight(1f),
+                                enabled = !analizandoIA && !guardandoCaptura
+                            )
+                            OutlinedTextField(
+                                value = longitudCaptura, 
+                                onValueChange = { longitudCaptura = it }, 
+                                label = { Text("Longitud (pulg)") }, 
+                                modifier = Modifier.weight(1f),
+                                enabled = !analizandoIA && !guardandoCaptura
+                            )
                         }
                     }
 
@@ -2075,8 +2413,8 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                                         fotosUrls = if (recordParaEditarCaptura != null) recordParaEditarCaptura!!.fotosUrls + uploadedUrls else uploadedUrls,
                                         climaTemp = (clima?.main?.temp?.toInt()?.toString()?.plus("°F") ?: "N/A"),
                                         climaWind = (clima?.wind?.speed?.toInt()?.toString()?.plus(" mph") ?: "N/A"),
-                                        climaPressure = (pressureInHg + " inHg"),
-                                        climaTide = "Subiendo (Auto)", // Simplificado
+                                        climaPressure = "$pressureInHg inHg",
+                                        climaTide = tideDescription,
                                         lugar = spotSeleccionado?.nombre ?: "Ubicación desconocida"
                                     )
 
@@ -2102,7 +2440,7 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                             Toast.makeText(context, "Indica el nombre del pez", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    enabled = !guardandoCaptura
+                    enabled = !guardandoCaptura && !analizandoIA && (if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura).isNotBlank()
                 ) {
                     Text("Guardar")
                 }
@@ -2200,4 +2538,79 @@ fun PhotoCarousel(
             }
         }
     }
+}
+
+@Composable
+fun DialogoPicosDeOro(peaks: List<GoldenPeak>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AutoAwesome, null, tint = Color(0xFFFFD700))
+                Spacer(Modifier.width(8.dp))
+                Text("Picos de Oro (Próximos 30 días)")
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                Text(
+                    "Días donde la marea alta coincide con el amanecer o atardecer (+/- 90 min).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                if (peaks.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text("No se encontraron picos ideales en este periodo.", textAlign = TextAlign.Center)
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                        items(peaks) { peak ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.2f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(peak.date, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text(peak.time, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    
+                                    Surface(
+                                        color = if (peak.type == "Amanecer") Color(0xFFFFE082) else Color(0xFFFFCCBC),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            peak.type, 
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Datos astronómicos por sunrise-sunset.org",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text("Entendido")
+            }
+        }
+    )
 }
