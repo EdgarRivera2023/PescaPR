@@ -277,7 +277,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                     // v1.5
                     VersionNote(
-                        version = "v1.5",
+                        version = "v1.5 7/17/2026",
                         changes = listOf(
                             "Mejoras de Guía Oficial: Tamaños de imágenes mejoradas para una mejor vista.",
                             "Pines de Comunidad: Sección de pines privados y pines púbicos en el mapa."
@@ -285,7 +285,7 @@ fun MainTabsScreen(database: AppDatabase) {
                     )
                     // v1.4
                     VersionNote(
-                        version = "v1.4",
+                        version = "v1.4 - 7/16/2026",
                         changes = listOf(
                             "Mejoras de Estabilidad: Protecciones añadidas para evitar cierres inesperados al guardar datos.",
                             "Recuperación Automática: El app ahora puede recuperarse de errores en la base de datos sin quedar bloqueada.",
@@ -295,7 +295,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                     // v1.3
                     VersionNote(
-                        version = "v1.3",
+                        version = "v1.3 - 7/15/2026",
                         changes = listOf(
                             "Privacidad Total: Spots y récords ahora se guardan localmente (Room).",
                             "Bitácora Personal: Cada usuario tiene sus propios datos privados.",
@@ -306,7 +306,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                     // v1.2
                     VersionNote(
-                        version = "v1.2",
+                        version = "v1.2 - 7/4/2026",
                         changes = listOf(
                             "Integración avanzada de capturas con el Mapa.",
                             "Registro de clima automático (Temp, Viento, Presión, Marea).",
@@ -317,7 +317,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                     // v1.1
                     VersionNote(
-                        version = "v1.1",
+                        version = "v1.1 - 6/26/2026",
                         changes = listOf(
                             "Nueva sección 'Acerca de' con notas de versión.",
                             "Mejoras en la fluidez de la interfaz de usuario.",
@@ -327,7 +327,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                     // v1.0
                     VersionNote(
-                        version = "v1.0",
+                        version = "v1.0 - 5/8/2026",
                         changes = listOf(
                             "Identificación de peces con Inteligencia Artificial.",
                             "Mapa de spots de pesca compartidos.",
