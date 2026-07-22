@@ -12,8 +12,6 @@
 /captures
 .externalNativeBuild
 .cxx
-
-# Binaries and large files
-*.exe
-*.aab
-/app/release/
+local.properties
+# Firebase configuration
+google-services.json

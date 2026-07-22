@@ -60,6 +60,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Uses the standard string resource for production (Best Practice)
+            manifestPlaceholders["appName"] = "@string/app_name"
+        }
+
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            // Overrides the app name for your side-by-side debug version
+            manifestPlaceholders["appName"] = "Debug"
         }
     }
     compileOptions {
