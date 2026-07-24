@@ -48,6 +48,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -86,6 +88,9 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.maps.android.compose.*
+import com.bradmir.pescapr.data.*
+import com.bradmir.pescapr.network.MarineWeatherService
+import com.bradmir.pescapr.ui.components.ProSwellCard
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import retrofit2.Retrofit
@@ -263,6 +268,9 @@ fun MainTabsScreen(database: AppDatabase) {
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
     
+    // --- GATED ACCESS (PRO TIER) ---
+    val isUserPro = true // Change this to true to test paid functions
+    
     // Foco para navegación desde Récords -> Mapa
     var spotIdAFocar by remember { mutableStateOf<String?>(null) }
     var mostrarDialogoAcercaDe by remember { mutableStateOf(false) }
@@ -295,7 +303,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), userScrollEnabled = false) { page ->
             when (page) {
-                0 -> PantallaMapaTab(database = database, spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
+                0 -> PantallaMapaTab(database = database, isPro = isUserPro, spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
                 1 -> PantallaIdentificadorYRegulacionesTab()
                 2 -> PantallaGuiaOficialTab()
                 3 -> PantallaRecordsTab(database = database, onIrALugar = { id -> 
@@ -334,6 +342,24 @@ fun MainTabsScreen(database: AppDatabase) {
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
+                    // v1.9
+                    VersionNote(
+                        version = "v1.9.0 - 7/24/2026",
+                        changes = listOf(
+                            "Pro Feature: Métricas de Swell y Oleaje en tiempo real.",
+                            "Optimización: Carga paralela de datos meteorológicos y marinos.",
+                            "Arquitectura: Refactorización estructural para módulos Pro."
+                        )
+                    )
+
+                    // v1.8
+                    VersionNote(
+                        version = "v1.8 - 7/23/2026 ",
+                        changes = listOf(
+                            "Nueva Función: Capacidad de búsqueda en Guia Oficial.",
+                            "Manómetro de mareas se actualiza al pulsarlo."
+                        )
+                    )
                     // v1.7
                     VersionNote(
                         version = "v1.7 - 7/22/2026",
@@ -437,8 +463,8 @@ fun VersionNote(version: String, changes: List<String>) {
 
 // --- TAB 1: MAPA ---
 @Composable
-fun PantallaMapaTab(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
-    MapaPescapr(database = database, spotIdAFocar = spotIdAFocar, onFocoLogrado = onFocoLogrado)
+fun PantallaMapaTab(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
+    MapaPescapr(database = database, isPro = isPro, spotIdAFocar = spotIdAFocar, onFocoLogrado = onFocoLogrado)
 }
 
 // --- TAB 2: IDENTIFICADOR (Matching with Cards) ---
@@ -610,6 +636,18 @@ fun PantallaGuiaOficialTab() {
     val bitmapsNuevos = remember { mutableStateListOf<Bitmap>() }
     val urlsExistentes = remember { mutableStateListOf<String>() }
 
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredFichas = remember(searchQuery, fichas.size) {
+        if (searchQuery.isBlank()) fichas
+        else {
+            fichas.filter { 
+                it.nombreComun.contains(searchQuery, ignoreCase = true) ||
+                it.nombreCientifico.contains(searchQuery, ignoreCase = true) ||
+                it.nombreIngles.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
     // Sincronizar campos cuando se abre para editar
     LaunchedEffect(mostrarDialogoNueva) {
         if (mostrarDialogoNueva) {
@@ -681,10 +719,44 @@ fun PantallaGuiaOficialTab() {
             Text("Estás en modo edición. Los cambios afectan al identificador de todos los usuarios.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
+        Spacer(Modifier.height(12.dp))
+
+        // Barra de Búsqueda
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Buscar por nombre o especie...", style = MaterialTheme.typography.bodyMedium) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar")
+                    }
+                }
+            },
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedBorderColor = MaterialTheme.colorScheme.primary
+            )
+        )
+
         Spacer(Modifier.height(16.dp))
 
+        if (filteredFichas.isEmpty() && searchQuery.isNotEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.SearchOff, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+                    Text("No se encontraron resultados para \"$searchQuery\"", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+
         LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(fichas) { ficha ->
+            items(filteredFichas) { ficha ->
                 Card(
                     modifier = Modifier.fillMaxWidth().height(180.dp).clickable {
                         if (esDeveloper) {
@@ -1191,6 +1263,22 @@ fun findNearestTideStation(lat: Double, lon: Double): TideStation {
     } ?: NOAA_STATIONS_PR[0]
 }
 
+fun calculateCoastalScore(heightFt: Float, periodSec: Float): Int {
+    var score = 5 // Base score
+    
+    // Period is king for surf casting
+    if (periodSec > 10) score += 3
+    else if (periodSec > 7) score += 1
+    else score -= 2
+    
+    // Height management
+    if (heightFt in 2.0..5.0) score += 2 // Ideal height
+    else if (heightFt > 8.0) score -= 3 // Too rough
+    else if (heightFt < 1.0) score -= 1 // Too flat
+    
+    return score.coerceIn(1, 10)
+}
+
 fun calculateTideFactor(predictions: List<TidePrediction>): Triple<Float, String, String> {
     if (predictions.size < 2) return Triple(0.5f, "Sin datos", "")
     
@@ -1595,7 +1683,7 @@ fun WeatherInfoItem(icon: ImageVector, value: String, label: String, tintOverrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
+fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
     val context = LocalContext.current
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
     val spotDao = remember { database.spotDao() }
@@ -1732,43 +1820,142 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
             .addConverterFactory(GsonConverterFactory.create()).build().create(SunriseSunsetService::class.java)
     }
 
+    val marineService = remember {
+        Retrofit.Builder().baseUrl("https://marine-api.open-meteo.com/")
+            .addConverterFactory(GsonConverterFactory.create()).build().create(MarineWeatherService::class.java)
+    }
+
     var tideFactor by remember { mutableStateOf(0.5f) }
     var tideDescription by remember { mutableStateOf("Selecciona un spot") }
     var nextTideTime by remember { mutableStateOf("") }
+
+    var swellMetrics by remember { mutableStateOf<ProSwellMetrics?>(null) }
+    var cargandoSwell by remember { mutableStateOf(false) }
+    var swellProbePointsAttempted by remember { mutableIntStateOf(0) }
+    var swellProbeHits by remember { mutableIntStateOf(0) }
+    var lastSwellError by remember { mutableStateOf("") }
 
     var goldenPeaks by remember { mutableStateOf<List<GoldenPeak>>(emptyList()) }
     var calculandoPicos by remember { mutableStateOf(false) }
     var mostrarPicosDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(spotSeleccionado) {
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(spotSeleccionado, refreshKey) {
         spotSeleccionado?.let { spot ->
-            cargandoClima = true
-            try {
-                datosClima = weatherService.getWeather(
-                    spot.coordenada.latitude, 
-                    spot.coordenada.longitude, 
-                    BuildConfig.OPENWEATHER_API_KEY
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
-                datosClima = null
-            } finally {
-                cargandoClima = false
+            // Fetch Weather and Swell in Parallel
+            launch {
+                cargandoClima = true
+                try {
+                    datosClima = weatherService.getWeather(
+                        spot.coordenada.latitude, 
+                        spot.coordenada.longitude, 
+                        BuildConfig.OPENWEATHER_API_KEY
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("PescaPR", "Weather Fetch Error: ${e.message}")
+                    datosClima = null
+                } finally {
+                    cargandoClima = false
+                }
             }
 
-            try {
-                val station = findNearestTideStation(spot.coordenada.latitude, spot.coordenada.longitude)
-                val response = tideService.getTidePredictions(station = station.id)
-                response.predictions?.let { preds ->
-                    val (factor, desc, time) = calculateTideFactor(preds)
-                    tideFactor = factor
-                    tideDescription = desc
-                    nextTideTime = time
+            launch {
+                cargandoSwell = true
+                swellProbeHits = 0
+                lastSwellError = ""
+                try {
+                    val radii = listOf(0.04, 0.1, 0.2, 0.4, 0.6) // More offshore points
+                    val searchPoints = mutableListOf<Pair<Double, Double>>()
+                    searchPoints.add(spot.coordenada.latitude to spot.coordenada.longitude)
+                    for (r in radii) {
+                        searchPoints.add(spot.coordenada.latitude + r to spot.coordenada.longitude)
+                        searchPoints.add(spot.coordenada.latitude - r to spot.coordenada.longitude)
+                        searchPoints.add(spot.coordenada.latitude to spot.coordenada.longitude + r)
+                        searchPoints.add(spot.coordenada.latitude to spot.coordenada.longitude - r)
+                    }
+                    // Filter duplicate or redundant points if any
+                    val uniquePoints = searchPoints.distinct()
+                    swellProbePointsAttempted = uniquePoints.size
+
+                    val deferreds = uniquePoints.map { point ->
+                        async {
+                            try {
+                                // Attempt with default (sea selection)
+                                val response = marineService.getSwellData(point.first, point.second)
+                                val hourly = response.hourly
+                                if (hourly == null || hourly.waveHeight.isEmpty()) {
+                                    null
+                                } else {
+                                    val cal = java.util.Calendar.getInstance()
+                                    val currentHour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                                    val safeHour = currentHour.coerceIn(0, hourly.waveHeight.size - 1)
+                                    
+                                    if (hourly.waveHeight[safeHour] != null) {
+                                        point to response
+                                    } else null
+                                }
+                            } catch (e: Exception) { 
+                                lastSwellError = e.message ?: "Unknown Error"
+                                null 
+                            }
+                        }
+                    }
+
+                    val results = deferreds.awaitAll().filterNotNull()
+                    swellProbeHits = results.size
+                    
+                    if (results.isNotEmpty()) {
+                        val bestResult = results.maxByOrNull { (_, res) -> 
+                            val h = res.hourly?.waveHeight?.getOrNull(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) ?: 0f
+                            h
+                        }
+                        
+                        bestResult?.let { (_, swellRes) ->
+                            val hourly = swellRes.hourly!!
+                            val cal = java.util.Calendar.getInstance()
+                            val currentHour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                            val safeHour = currentHour.coerceIn(0, hourly.waveHeight.size - 1)
+                            
+                            val height = hourly.waveHeight[safeHour] ?: 0f
+                            val period = hourly.wavePeriod[safeHour] ?: 0f
+                            val direction = hourly.waveDirection[safeHour] ?: 0f
+                            
+                            swellMetrics = ProSwellMetrics(
+                                heightFt = height,
+                                periodSec = period,
+                                directionDeg = direction,
+                                score = calculateCoastalScore(height, period)
+                            )
+                        }
+                    } else {
+                        swellMetrics = null
+                    }
+                } catch (e: Exception) {
+                    lastSwellError = e.message ?: "Master error"
+                    swellMetrics = null
+                } finally {
+                    cargandoSwell = false
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                tideDescription = "Mareas no disp."
-                nextTideTime = ""
+            }
+
+            // Tides (Parallelized)
+            launch {
+                try {
+                    val station = findNearestTideStation(spot.coordenada.latitude, spot.coordenada.longitude)
+                    val response = tideService.getTidePredictions(station = station.id, date = "today")
+                    response.predictions?.let { preds ->
+                        val (factor, desc, time) = calculateTideFactor(preds)
+                        tideFactor = factor
+                        tideDescription = desc
+                        nextTideTime = time
+                    } ?: run {
+                        tideDescription = "Sin predicciones"
+                    }
+                } catch (e: Exception) {
+                    tideDescription = "Error de red"
+                    nextTideTime = ""
+                }
             }
         }
     }
@@ -1850,8 +2037,17 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
             TextButton(onClick = { verPinesComunidad = false }) {
                 Text("Mis Pines", color = if (!verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
             }
-            TextButton(onClick = { verPinesComunidad = true }) {
-                Text("Comunidad", color = if (verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+            TextButton(
+                onClick = { if (isPro) verPinesComunidad = true },
+                enabled = true // Clickable to show teaser or disabled
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Comunidad", color = if (verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+                    if (!isPro) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
+                    }
+                }
             }
         }
     }
@@ -1963,11 +2159,64 @@ fun MapaPescapr(database: AppDatabase, spotIdAFocar: String? = null, onFocoLogra
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            RelojMareasCircular(valor = tideFactor, nextTime = nextTideTime)
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable { 
+                                        refreshKey++
+                                        Toast.makeText(context, "Actualizando condiciones...", Toast.LENGTH_SHORT).show()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                RelojMareasCircular(valor = tideFactor, nextTime = nextTideTime)
+                            }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("MAREA", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             Text(tideDescription, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                         }
+                    }
+
+                    if (isPro) {
+                        Spacer(Modifier.height(16.dp))
+                        if (cargandoSwell) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape))
+                        } else if (swellMetrics != null) {
+                            ProSwellCard(metrics = swellMetrics!!)
+                            Text(
+                                "Debug Swell: Probes=$swellProbePointsAttempted, Hits=$swellProbeHits",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray
+                            )
+                        } else {
+                            // Mostrar mensaje de que el spot no es costero o no hay datos
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.3f))
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        "Métricas de Swell solo disponibles en áreas costeras.",
+                                        modifier = Modifier.padding(12.dp),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        "Debug: Probes=$swellProbePointsAttempted, Hits=$swellProbeHits, Error=$lastSwellError",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Red.copy(alpha = 0.5f),
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Spacer(Modifier.height(16.dp))
+                        ProFeatureTeaser(
+                            title = "Métricas de Swell & Oleaje",
+                            description = "Desbloquea altura de olas, periodo y dirección en tiempo real con PescaPR Pro."
+                        )
                     }
                 } else {
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(0.1f))) {
@@ -2535,6 +2784,35 @@ fun PhotoCarousel(
                             }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProFeatureTeaser(title: String, description: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(0.2f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(0.3f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Stars, null, tint = MaterialTheme.colorScheme.secondary)
+                Spacer(Modifier.width(8.dp))
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(description, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { /* TODO: Open Subscription Screen */ },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Icon(Icons.Default.RocketLaunch, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Actualizar a Pro", style = MaterialTheme.typography.labelMedium)
             }
         }
     }

@@ -1,5 +1,16 @@
-- `[x]` Add state and Firestore listener for community pins in `MapaPescapr`
-- `[x]` Wrap `GoogleMap` in a `Box` and add the "Mis Pines"/"Comunidad" toggle UI
-- `[x]` Update `GoogleMap` marker rendering to support toggling between local and community pins
-- `[x]` Add Firestore upload logic when saving a new spot
-- `[x]` Verify changes build and run correctly
+- [x] Create implementation plan
+- [x] Structural Refactoring
+    - [x] Create `data/SwellModels.kt`
+    - [x] Create `network/MarineWeatherService.kt`
+    - [x] Create `ui/components/ProSwellCard.kt`
+- [x] Optimize `MainActivity.kt` logic
+    - [x] Implement parallel swell probing
+    - [x] Refine probing hits (check for non-null hourly wave height)
+    - [x] Parallelize weather & swell fetching
+- [x] Finalize Module 1
+    - [x] Update `build.gradle.kts` version to `1.9.0`
+    - [x] Mark tasks as completed in `TODO_PRO_MIGRATION.md`
+    - [x] Add v1.9.0 notes to "Acerca de" dialog
+- [x] Verification
+    - [x] Build project
+    - [x] Create walkthrough artifact

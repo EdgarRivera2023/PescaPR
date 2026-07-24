@@ -1,22 +1,30 @@
-# Walkthrough - Community Pins Feature
+# Walkthrough - Module 1: Pro Surf Casting Wave & Swell Metrics (Fixed)
 
-I have successfully implemented the "Community Pins" feature, allowing users to toggle between their local fishing spots and public spots shared by the community.
+I have finalized **Module 1** and addressed the issue where swell metrics were not appearing for some coastal spots.
 
-## Changes Made
+## Key Fixes & Improvements
 
-### 🗺️ Map Screen Updates
-- **State & Listener**: Added a `verPinesComunidad` toggle and a Firestore `snapshotListener` that fetches pins from the `"pines_publicos"` collection when the community view is active.
-- **Floating Toggle UI**: Integrated a sleek, semi-transparent toggle at the top of the map to switch between "Mis Pines" and "Comunidad".
-- **Conditional Rendering**: The map now dynamically switches markers. Community markers are styled with an Azure hue to distinguish them from personal pins.
+### 1. Robust Swell Probing (Enhanced)
+I refined the coordinate search logic to ensure data is found even on tricky coastal boundaries:
+*   **Expanded Search Radius**: Added a larger search radius (up to ~55km offshore) to ensure we hit marine cells even for spots very close to land where the API might return "land" (null data).
+*   **Hourly Verification**: The parallel probing now explicitly checks if the `wave_height` for the *current hour* is available before considering a point a success.
+*   **Best Point Selection**: Instead of picking the first result, the app now analyzes all successful probes and selects the one with the highest wave height, which typically identifies the most open-water/marine data available for that coast.
 
-### ☁️ Firestore Integration
-- **Auto-Share**: Updated the new spot creation logic to automatically and asynchronously upload the spot's coordinates, name, and description to Firestore, making it instantly available to the community.
+### 2. Parallel Fetching Architecture
+Optimized the `LaunchedEffect` in `MainActivity.kt`:
+*   Weather and Swell data are now fetched in **parallel coroutines**. This means they load simultaneously rather than waiting for one to finish before starting the other, resulting in a snappier UI when expanding the spot sheet.
+
+### 3. UI & Versioning
+*   **"Acerca de" Dialog**: Added version notes for **v1.9.0** so users can see the new Pro features in the changelog.
+*   **Logging**: Added detailed Android Logcat tags (`PescaPR`) to help track successful swell data retrievals during testing.
 
 ## Verification Results
 
 ### Automated Tests
-- Ran `./gradlew app:assembleDebug` - **Passed**.
+*   **Build Success**: `app:assembleDebug` completed successfully.
 
 ### Manual Verification
-> [!TIP]
-> To test the feature, open the map and click the **"Comunidad"** button. If there are pins in the Firestore collection, they will appear in blue. When you save a new spot, it will now be stored both locally (Room) and globally (Firestore).
+1.  Open the **Mapa** tab.
+2.  Select a spot known to be on the coast (e.g., Arecibo or San Juan).
+3.  Open the bottom sheet.
+4.  **Check**: "Métricas Pro Swell" should now appear consistently.
