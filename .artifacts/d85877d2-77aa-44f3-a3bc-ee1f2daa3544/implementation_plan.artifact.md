@@ -1,43 +1,38 @@
-# Implementation Plan - Module 1: Pro Surf Casting Wave & Swell Metrics
+# Implementation Plan - Paywall Screen UI Component (v2.1.4)
 
-This plan aims to finalize and professionalize the implementation of **Module 1** as outlined in the [TODO_PRO_MIGRATION.md](file:///C:/Users/edgar/AndroidStudioProjects/PescaPR/TODO_PRO_MIGRATION.md). While much of the code is already present in `MainActivity.kt`, it requires structural organization, performance optimization, and verification to meet production standards.
+This plan outlines the design and implementation of `PaywallScreen.kt` using Jetpack Compose and Material 3 to present PescaPR Pro features and trigger Google Play Billing subscription flows.
 
 ## User Review Required
 
-> [!IMPORTANT]
-> I will be refactoring `MainActivity.kt` by extracting data models and network interfaces into a proper package structure (`data`, `network`, `ui`). This is a significant structural change but necessary for the long-term health of the project as we add more modules.
+> [!NOTE]
+> **State Hoisting**: The `PaywallScreen` composable will remain completely stateless, accepting `ProductDetails?`, `isLoading: Boolean`, `onSubscribeClicked: () -> Unit`, and `onDismiss: () -> Unit`.
+> **Fallback Pricing**: If `ProductDetails` is null (e.g. when testing without Play Store sandbox connection), it will display a fallback pricing label (e.g., "$4.99 / mes").
 
 ## Proposed Changes
 
-### 1. Structural Refactoring
-I will move code out of the 1300+ line `MainActivity.kt` into dedicated files:
+### UI Layer
 
-#### [NEW] [SwellModels.kt](file:///C:/Users/edgar/AndroidStudioProjects/PescaPR/app/src/main/java/com/bradmir/pescapr/data/SwellModels.kt)
-*   `SwellResponse`, `HourlySwell`, `ProSwellMetrics`.
-
-#### [NEW] [MarineWeatherService.kt](file:///C:/Users/edgar/AndroidStudioProjects/PescaPR/app/src/main/java/com/bradmir/pescapr/network/MarineWeatherService.kt)
-*   `MarineWeatherService` Retrofit interface.
-
-#### [NEW] [ProSwellCard.kt](file:///C:/Users/edgar/AndroidStudioProjects/PescaPR/app/src/main/java/com/bradmir/pescapr/ui/components/ProSwellCard.kt)
-*   `ProSwellCard` and `SwellInfoItem` composables.
-
-### 2. Performance Optimization in [MainActivity.kt](file:///C:/Users/edgar/AndroidStudioProjects/PescaPR/app/src/main/java/com/bradmir/pescapr/MainActivity.kt)
-*   **Parallel Probing**: Instead of a sequential `for` loop that calls `marineService.getSwellData` one by one (which can take several seconds if the first points fail), I will implement a parallel search using `async/awaitAll`. This will fetch all 13 probe points simultaneously and pick the first successful result.
-*   **Cache Result**: Ensure swell data is cached for the current session when switching between spots to avoid redundant network calls.
-
-### 3. Verification & Branding
-*   **Update Version**: Change `versionName` to `1.9.0` in `build.gradle.kts` to reflect the completion of Module 1.
-*   **Pro UI Polish**: Add a "PRO" badge or distinct styling to the `ProSwellCard` to reinforce the value of the subscription.
-
-### 4. Progress Tracking
-*   Mark tasks `v1.9.0` through `v1.9.5` as completed in `TODO_PRO_MIGRATION.md`.
+#### [NEW] [PaywallScreen.kt](file:///C:/Users/edgar/AndroidStudioProjects/PescaPR/app/src/main/java/com/bradmir/pescapr/ui/components/PaywallScreen.kt)
+- Design a Material 3 composable `PaywallScreen` (and `PaywallDialog` wrapper).
+- Header:
+    - Crown/Star icon + "PRO" Badge.
+    - Title: "Desbloquea el Potencial Máximo de PescaPR".
+- Feature list items:
+    - 🌊 **Métricas de Oleaje & Swell**: Datos en tiempo real optimizados para costa.
+    - 🧠 **AI Catch Pattern Matcher**: Análisis inteligente con Gemini para predecir momentos óptimos.
+    - 📍 **Red de Pines de la Comunidad**: Acceso a los spots compartidos por la comunidad.
+    - 🗺️ **Morfología Costera & Estructuras**: Capas avanzadas de mapas marinos.
+    - 📶 **Sincronización & Modo Offline**: Acceso a tus récords sin señal.
+- Pricing & CTA:
+    - Formatted price derived from `ProductDetails` (or fallback "$4.99 / mes").
+    - Primary Button: "Suscribirme Ahora". Shows `CircularProgressIndicator` if `isLoading`.
+    - Text Button: "Continuar con versión gratuita".
 
 ## Verification Plan
 
 ### Automated Tests
-*   Run `app:assembleDebug` to ensure refactoring didn't break the build.
+- Build debug APK using `gradle_build("app:assembleDebug")`.
 
 ### Manual Verification
-1.  **Swell Data Loading**: Select a coastal spot and verify that the "Signos Vitales" section shows swell metrics (height, period, direction).
-2.  **Parallel Loading Speed**: Observe that the swell metrics load faster than the current sequential implementation.
-3.  **Pro Gate**: Toggle `isUserPro` in code and verify that the `ProFeatureTeaser` shows up correctly for non-pro users.
+1. Inspect the layout and typography in Android Studio Preview.
+2. Confirm state hoisting: verify that clicking "Suscribirme Ahora" triggers `onSubscribeClicked()` and clicking "Continuar..." triggers `onDismiss()`.

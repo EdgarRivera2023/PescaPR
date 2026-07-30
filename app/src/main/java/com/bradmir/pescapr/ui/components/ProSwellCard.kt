@@ -34,7 +34,7 @@ fun ProSwellCard(metrics: ProSwellMetrics?) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Water, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Métricas Pro Swell", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("Métricas Pro Marejada", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 }
                 
                 Surface(

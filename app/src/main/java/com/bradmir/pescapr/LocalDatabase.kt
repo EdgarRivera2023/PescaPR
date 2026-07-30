@@ -2,6 +2,8 @@ package com.bradmir.pescapr
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -16,7 +18,8 @@ data class SpotEntity(
     val descripcion: String,
     val latitud: Double,
     val longitud: Double,
-    val fotosUrls: List<String> = emptyList()
+    val fotosUrls: List<String> = emptyList(),
+    val userId: String = ""
 )
 
 @Entity(tableName = "records")
@@ -92,13 +95,19 @@ interface RecordDao {
 
 // --- DATABASE ---
 
-@Database(entities = [SpotEntity::class, RecordEntity::class], version = 1, exportSchema = false)
+@Database(entities = [SpotEntity::class, RecordEntity::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun spotDao(): SpotDao
     abstract fun recordDao(): RecordDao
 
     companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE spots ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -108,7 +117,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "pescapr_local_db"
-                ).fallbackToDestructiveMigration()
+                ).addMigrations(MIGRATION_1_2)
                 .build()
                 INSTANCE = instance
                 instance

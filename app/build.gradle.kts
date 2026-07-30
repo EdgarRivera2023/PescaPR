@@ -13,8 +13,8 @@ android {
         applicationId = "com.bradmir.pescapr"
         minSdk = 24
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.9.0"
+        versionCode = 15
+        versionName = "2.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -91,11 +91,13 @@ dependencies {
     // Core Android & Compose
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.material3)
 
     // Google Maps
@@ -103,11 +105,15 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
 
+    // Google Play Billing
+    implementation(libs.play.billing.ktx)
+
     // Icons
     implementation(libs.androidx.compose.icons.extended)
 
     // Firebase (BOM keeps versions perfectly in sync)
     implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
 

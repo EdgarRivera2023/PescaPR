@@ -77,10 +77,12 @@ import coil.request.SuccessResult
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.ai.client.generativeai.type.generationConfig
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.firestore.DocumentSnapshot
@@ -88,9 +90,12 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.maps.android.compose.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bradmir.pescapr.data.*
 import com.bradmir.pescapr.network.MarineWeatherService
 import com.bradmir.pescapr.ui.components.ProSwellCard
+import com.bradmir.pescapr.ui.components.PaywallDialog
+import com.bradmir.pescapr.ui.viewmodels.MapViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import retrofit2.Retrofit
@@ -110,13 +115,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 // --- 1. MODELOS DE DATOS ---
-data class PuntoPesca(
-    val id: String = "0", // Local Room ID as String
-    val coordenada: LatLng = LatLng(0.0, 0.0),
-    val nombre: String = "",
-    val descripcion: String = "",
-    val fotosUrls: List<String> = emptyList()
-)
 
 data class FichaPez(
     val id: String = "",
@@ -156,10 +154,6 @@ data class RecordPesca(
     val climaPressure: String = "",
     val climaTide: String = ""
 )
-
-data class WeatherResponse(val main: MainData, val wind: WindData)
-data class MainData(val temp: Float, val pressure: Int)
-data class WindData(val speed: Float)
 
 // --- NOAA TIDES MODELS ---
 data class TidePrediction(
@@ -264,12 +258,31 @@ fun saveImageToInternalStorage(context: Context, bitmap: Bitmap, folder: String)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainTabsScreen(database: AppDatabase) {
-    val tabs = listOf("Mapa", "Identificar", "Guía Official", "Mis Récords")
+    val tabs = listOf("Mapa", "Identificar", "Guía Official", "Diario Privado")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     
-    // --- GATED ACCESS (PRO TIER) ---
-    val isUserPro = true // Change this to true to test paid functions
+    // --- GATED ACCESS (PRO TIER - SINGLE SOURCE OF TRUTH) ---
+    val subscriptionManager = remember { SubscriptionManager(context) }
+    val isUserPro by subscriptionManager.isProUser.collectAsState()
+
+    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+    LaunchedEffect(userId) {
+        if (userId.isNotBlank()) {
+            subscriptionManager.checkSubscriptionStatus(userId)
+        }
+    }
+
+    // Repositories
+    val firestore = remember { FirebaseFirestore.getInstance("pescapr") }
+    val catchRepository = remember { 
+        CatchRepository(database.recordDao(), firestore) 
+    }
+    val spotRepository = remember {
+        SpotRepository(firestore)
+    }
     
     // Foco para navegación desde Récords -> Mapa
     var spotIdAFocar by remember { mutableStateOf<String?>(null) }
@@ -303,10 +316,10 @@ fun MainTabsScreen(database: AppDatabase) {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), userScrollEnabled = false) { page ->
             when (page) {
-                0 -> PantallaMapaTab(database = database, isPro = isUserPro, spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
+                0 -> PantallaMapaTab(database = database, repository = catchRepository, spotRepository = spotRepository, subscriptionManager = subscriptionManager, userId = userId, isPro = isUserPro, spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
                 1 -> PantallaIdentificadorYRegulacionesTab()
                 2 -> PantallaGuiaOficialTab()
-                3 -> PantallaRecordsTab(database = database, onIrALugar = { id -> 
+                3 -> PantallaRecordsTab(database = database, repository = catchRepository, onIrALugar = { id -> 
                     spotIdAFocar = id
                     coroutineScope.launch { pagerState.animateScrollToPage(0) }
                 })
@@ -342,11 +355,73 @@ fun MainTabsScreen(database: AppDatabase) {
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
+                    // v2.1.5
+                    VersionNote(
+                        version = "v2.1.5 - 7/26/2026",
+                        changes = listOf(
+                            "Publicación Estática de Spots: Guardado en Firestore con atribución userId explícita y cero rastreo en tiempo real.",
+                            "Terminología UI: Actualización global de 'Swell' a 'Marejada'."
+                        )
+                    )
+
+                    // v2.1.4
+                    VersionNote(
+                        version = "v2.1.4 - 7/26/2026",
+                        changes = listOf(
+                            "Pantalla Paywall Pro: Interfaz de usuario para suscripciones y beneficios de PescaPR Pro."
+                        )
+                    )
+
+                    // v2.1.3
+                    VersionNote(
+                        version = "v2.1.3 - 7/26/2026",
+                        changes = listOf(
+                            "SubscriptionManager: Control de estado Pro en tiempo real y sincronización de derechos con Firestore.",
+                            "Manejo de Compras: Soporte para verificación asíncrona de suscripciones y flujo de facturación."
+                        )
+                    )
+
+                    // v2.1.2
+                    VersionNote(
+                        version = "v2.1.2 - 7/26/2026",
+                        changes = listOf(
+                            "Google Play Billing v7: Integración de dependencias ktx de facturación oficial de Google Play."
+                        )
+                    )
+
+                    // v2.1.1
+                    VersionNote(
+                        version = "v2.1.1 - 7/25/2026",
+                        changes = listOf(
+                            "Red de Pines de la Comunidad: Filtrado por rol según estado de suscripción Pro.",
+                            "Consultas Optimizadas: Lectura bajo demanda con botón de refresco manual para ahorrar lecturas de Firestore."
+                        )
+                    )
+
+                    // v2.1.0
+                    VersionNote(
+                        version = "v2.1.0 - 7/25/2026",
+                        changes = listOf(
+                            "Modelo PuntoPesca: Asociación de spots al ID de usuario en Firestore y Room.",
+                            "Migración Room: Actualización no destructiva de base de datos de v1 a v2."
+                        )
+                    )
+
+                    // v2.0.0
+                    VersionNote(
+                        version = "v2.0.0 - 7/24/2026",
+                        changes = listOf(
+                            "Diario Privado Pro: Sincronización automática en la nube.",
+                            "AI Pattern Matcher: Análisis inteligente de tus capturas para encontrar patrones de éxito.",
+                            "Métricas Pro Marejada (v1.9): Optimizadas para costa."
+                        )
+                    )
+
                     // v1.9
                     VersionNote(
                         version = "v1.9.0 - 7/24/2026",
                         changes = listOf(
-                            "Pro Feature: Métricas de Swell y Oleaje en tiempo real.",
+                            "Pro Feature: Métricas de Marejada y Oleaje en tiempo real.",
                             "Optimización: Carga paralela de datos meteorológicos y marinos.",
                             "Arquitectura: Refactorización estructural para módulos Pro."
                         )
@@ -463,8 +538,26 @@ fun VersionNote(version: String, changes: List<String>) {
 
 // --- TAB 1: MAPA ---
 @Composable
-fun PantallaMapaTab(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
-    MapaPescapr(database = database, isPro = isPro, spotIdAFocar = spotIdAFocar, onFocoLogrado = onFocoLogrado)
+fun PantallaMapaTab(
+    database: AppDatabase,
+    repository: CatchRepository,
+    spotRepository: SpotRepository,
+    subscriptionManager: SubscriptionManager,
+    userId: String,
+    isPro: Boolean,
+    spotIdAFocar: String? = null,
+    onFocoLogrado: () -> Unit = {}
+) {
+    MapaPescapr(
+        database = database,
+        repository = repository,
+        spotRepository = spotRepository,
+        subscriptionManager = subscriptionManager,
+        userId = userId,
+        isPro = isPro,
+        spotIdAFocar = spotIdAFocar,
+        onFocoLogrado = onFocoLogrado
+    )
 }
 
 // --- TAB 2: IDENTIFICADOR (Matching with Cards) ---
@@ -1403,9 +1496,48 @@ suspend fun ejecutarMatchingConFichas(db: FirebaseFirestore, userImage: Bitmap):
     }
 }
 
+suspend fun generarAIPatternInsights(records: List<RecordPesca>): String = withContext(Dispatchers.IO) {
+    try {
+        val aiKey = BuildConfig.GEMINI_API_KEY
+        if (aiKey.isBlank()) return@withContext "Error: API Key faltante"
+        if (records.isEmpty()) return@withContext "No tienes suficientes capturas para generar un análisis."
+
+        val historyText = StringBuilder("HISTORIAL DE CAPTURAS:\n")
+        records.forEach { r ->
+            historyText.append("- ${r.nombrePez} en ${r.lugar} el ${r.fecha}. Clima: ${r.climaTemp}, Viento: ${r.climaWind}, Marea: ${r.climaTide}\n")
+        }
+
+        val prompt = """
+            $historyText
+            
+            TAREA:
+            Eres un experto analista de pesca en Puerto Rico. 
+            Analiza el historial de capturas arriba y encuentra patrones de éxito.
+            Identifica:
+            1. Mejores momentos del día o condiciones climáticas para ciertas especies.
+            2. Lugares más productivos.
+            3. Recomendaciones para futuras salidas basadas en estos datos.
+            
+            Responde de forma concisa y motivadora en español, usando bullets.
+        """.trimIndent()
+
+        val generativeModel = GenerativeModel(
+            modelName = "gemini-2.5-flash",
+            apiKey = aiKey
+        )
+
+        val response = generativeModel.generateContent(prompt)
+        response.text ?: "No se pudo generar el análisis en este momento."
+    } catch (e: Exception) {
+        e.printStackTrace()
+        "Error analizando patrones: ${e.message}"
+    }
+}
+
 // --- TAB 4: MIS RÉCORDS ---
 @Composable
-fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {}) {
+fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrALugar: (String) -> Unit = {}) {
+    val context = LocalContext.current
     val recordDao = remember { database.recordDao() }
     val coroutineScope = rememberCoroutineScope()
     val records = remember { mutableStateListOf<RecordPesca>() }
@@ -1414,6 +1546,11 @@ fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {})
     // Estado para Edición
     var recordParaEditar by remember { mutableStateOf<RecordPesca?>(null) }
     var mostrarDialogoEdit by remember { mutableStateOf(false) }
+    
+    // Estado para AI Insights
+    var aiInsightsResult by remember { mutableStateOf("") }
+    var analizandoAI by remember { mutableStateOf(false) }
+    var mostrarDialogoAI by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         database.spotDao().getAllSpots().collect { entities ->
@@ -1422,7 +1559,7 @@ fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {})
     }
     
     LaunchedEffect(Unit) {
-        recordDao.getAllRecords().collect { entities ->
+        repository.localRecords.collect { entities ->
             records.clear()
             records.addAll(entities.map { entity ->
                 RecordPesca(
@@ -1443,7 +1580,54 @@ fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {})
     val groupedRecords = records.groupBy { it.nombrePez }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Mis Récords por Especie", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Diario Privado", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                val user = FirebaseAuth.getInstance().currentUser
+                if (user != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CloudDone, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Sincronizado", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+                } else {
+                    TextButton(
+                        onClick = { 
+                            coroutineScope.launch {
+                                try {
+                                    FirebaseAuth.getInstance().signInAnonymously().await()
+                                    Toast.makeText(context, "Sincronización activada", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error al activar: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }, 
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("Activar Sincronización (Pro)", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            
+            IconButton(
+                onClick = { 
+                    coroutineScope.launch {
+                        analizandoAI = true
+                        mostrarDialogoAI = true
+                        aiInsightsResult = generarAIPatternInsights(records)
+                        analizandoAI = false
+                    }
+                },
+                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+            ) {
+                Icon(Icons.Default.AutoAwesome, "AI Insights", tint = MaterialTheme.colorScheme.secondary)
+            }
+        }
+        
         HorizontalDivider()
 
         if (records.isEmpty()) {
@@ -1536,6 +1720,33 @@ fun PantallaRecordsTab(database: AppDatabase, onIrALugar: (String) -> Unit = {})
                 }
             }
         }
+    }
+
+    if (mostrarDialogoAI) {
+        AlertDialog(
+            onDismissRequest = { if (!analizandoAI) mostrarDialogoAI = false },
+            title = { 
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.secondary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("AI Insights")
+                }
+            },
+            text = {
+                if (analizandoAI) {
+                    Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Text(aiInsightsResult, style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { mostrarDialogoAI = false }, enabled = !analizandoAI) {
+                    Text("Cerrar")
+                }
+            }
+        )
     }
 
     if (mostrarDialogoEdit && recordParaEditar != null) {
@@ -1683,9 +1894,53 @@ fun WeatherInfoItem(icon: ImageVector, value: String, label: String, tintOverrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = null, onFocoLogrado: () -> Unit = {}) {
+fun MapaPescapr(
+    database: AppDatabase,
+    repository: CatchRepository,
+    spotRepository: SpotRepository,
+    subscriptionManager: SubscriptionManager? = null,
+    userId: String,
+    isPro: Boolean,
+    spotIdAFocar: String? = null,
+    onFocoLogrado: () -> Unit = {}
+) {
     val context = LocalContext.current
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
+    var mostrarPaywallDialog by remember { mutableStateOf(false) }
+
+    if (mostrarPaywallDialog && subscriptionManager != null) {
+        var productDetails by remember { mutableStateOf<com.android.billingclient.api.ProductDetails?>(null) }
+        var cargandoPaywall by remember { mutableStateOf(true) }
+
+        LaunchedEffect(Unit) {
+            subscriptionManager.queryProductDetails("pescapr_pro_monthly") { details ->
+                productDetails = details
+                cargandoPaywall = false
+            }
+        }
+
+        PaywallDialog(
+            productDetails = productDetails,
+            isLoading = cargandoPaywall,
+            onSubscribeClicked = {
+                val activity = context as? android.app.Activity
+                if (activity != null && productDetails != null) {
+                    subscriptionManager.launchBillingFlow(activity, productDetails!!)
+                }
+            },
+            onDismiss = { mostrarPaywallDialog = false }
+        )
+    }
+    
+    val viewModel: MapViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+            return MapViewModel(spotRepository) as T
+        }
+    })
+
+    val pinesComunidad by viewModel.pinesComunidad.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    
     val spotDao = remember { database.spotDao() }
     val recordDao = remember { database.recordDao() }
     val coroutineScope = rememberCoroutineScope()
@@ -1699,25 +1954,13 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
     val cameraPositionState = rememberCameraPositionState { position = CameraPosition.fromLatLngZoom(LatLng(18.2208, -66.5901), 9f) }
 
     val misPuntos = remember { mutableStateListOf<PuntoPesca>() }
-    val pinesComunidad = remember { mutableStateListOf<PuntoPesca>() }
     var verPinesComunidad by remember { mutableStateOf(false) }
     var spotSeleccionado by remember { mutableStateOf<PuntoPesca?>(null) }
     var mostrarSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(verPinesComunidad) {
-        if (verPinesComunidad) {
-            db.collection("pines_publicos").addSnapshotListener { snap, _ ->
-                pinesComunidad.clear()
-                snap?.documents?.mapNotNull { doc ->
-                    PuntoPesca(
-                        id = doc.id,
-                        coordenada = LatLng(doc.getDouble("lat") ?: 0.0, doc.getDouble("lng") ?: 0.0),
-                        nombre = doc.getString("nombre") ?: "",
-                        descripcion = doc.getString("descripcion") ?: "",
-                        fotosUrls = emptyList()
-                    )
-                }?.let { pinesComunidad.addAll(it) }
-            }
+        if (verPinesComunidad && pinesComunidad.isEmpty()) {
+            viewModel.refreshPins(userId, isPro)
         }
     }
 
@@ -1966,10 +2209,12 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
             misPuntos.addAll(entities.map { entity ->
                 PuntoPesca(
                     id = entity.id.toString(),
-                    coordenada = LatLng(entity.latitud, entity.longitud),
+                    latitude = entity.latitud,
+                    longitude = entity.longitud,
                     nombre = entity.nombre,
                     descripcion = entity.descripcion,
-                    fotosUrls = entity.fotosUrls
+                    fotosUrls = entity.fotosUrls,
+                    userId = entity.userId
                 )
             })
         }
@@ -1993,7 +2238,18 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapProperties(isMyLocationEnabled = hasLocationPermission, mapType = MapType.SATELLITE),
+            properties = MapProperties(
+                isMyLocationEnabled = hasLocationPermission,
+                mapType = MapType.SATELLITE,
+                mapStyleOptions = if (isPro) {
+                    try {
+                        MapStyleOptions.loadRawResourceStyle(context, R.raw.coastal_morphology_style)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                } else null
+            ),
             onMapLongClick = { latLng ->
                 nuevaCoordenada = latLng
                 nombreNuevoPunto = ""
@@ -2046,6 +2302,19 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
                     if (!isPro) {
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
+                    }
+                }
+            }
+
+            if (verPinesComunidad) {
+                IconButton(
+                    onClick = { viewModel.refreshPins(userId, isPro) },
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -2183,7 +2452,7 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
                         } else if (swellMetrics != null) {
                             ProSwellCard(metrics = swellMetrics!!)
                             Text(
-                                "Debug Swell: Probes=$swellProbePointsAttempted, Hits=$swellProbeHits",
+                                "Debug Marejada: Probes=$swellProbePointsAttempted, Hits=$swellProbeHits",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.Gray
                             )
@@ -2195,7 +2464,7 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                                     Text(
-                                        "Métricas de Swell solo disponibles en áreas costeras.",
+                                        "Métricas de Marejada solo disponibles en áreas costeras.",
                                         modifier = Modifier.padding(12.dp),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color.Gray,
@@ -2214,8 +2483,9 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
                     } else {
                         Spacer(Modifier.height(16.dp))
                         ProFeatureTeaser(
-                            title = "Métricas de Swell & Oleaje",
-                            description = "Desbloquea altura de olas, periodo y dirección en tiempo real con PescaPR Pro."
+                            title = "Métricas de Marejada & Oleaje",
+                            description = "Desbloquea altura de olas, periodo y dirección en tiempo real con PescaPR Pro.",
+                            onUpgradeClick = { mostrarPaywallDialog = true }
                         )
                     }
                 } else {
@@ -2461,22 +2731,26 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
                             coroutineScope.launch {
                                 guardandoPunto = true
                                 try {
+                                    val currentUid = userId.ifBlank { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
                                     val entity = SpotEntity(
                                         nombre = nombreNuevoPunto,
                                         descripcion = descripcionNuevoPunto,
                                         latitud = coords.latitude,
                                         longitud = coords.longitude,
-                                        fotosUrls = emptyList()
+                                        fotosUrls = emptyList(),
+                                        userId = currentUid
                                     )
                                     spotDao.insertSpot(entity)
                                     
-                                    // Subir a la comunidad
-                                    db.collection("pines_publicos").add(hashMapOf(
-                                        "lat" to coords.latitude,
-                                        "lng" to coords.longitude,
-                                        "nombre" to nombreNuevoPunto,
-                                        "descripcion" to descripcionNuevoPunto
-                                    ))
+                                    // Subir a la comunidad con atribución userId de forma estática
+                                    val nuevoSpot = PuntoPesca(
+                                        latitude = coords.latitude,
+                                        longitude = coords.longitude,
+                                        nombre = nombreNuevoPunto,
+                                        descripcion = descripcionNuevoPunto,
+                                        userId = currentUid
+                                    )
+                                    viewModel.shareSpotToCommunity(nuevoSpot)
 
                                     mostrarDialogoNuevoPunto = false
                                     Toast.makeText(context, "Spot guardado localmente", Toast.LENGTH_SHORT).show()
@@ -2668,7 +2942,7 @@ fun MapaPescapr(database: AppDatabase, isPro: Boolean, spotIdAFocar: String? = n
                                     )
 
                                     if (recordParaEditarCaptura == null) {
-                                        recordDao.insertRecord(entity)
+                                        repository.saveCatch(entity, isPro)
                                     } else {
                                         recordDao.updateRecord(entity)
                                     }
@@ -2790,7 +3064,7 @@ fun PhotoCarousel(
 }
 
 @Composable
-fun ProFeatureTeaser(title: String, description: String) {
+fun ProFeatureTeaser(title: String, description: String, onUpgradeClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(0.2f)),
@@ -2807,7 +3081,7 @@ fun ProFeatureTeaser(title: String, description: String) {
             Text(description, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
             Button(
-                onClick = { /* TODO: Open Subscription Screen */ },
+                onClick = onUpgradeClick,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
             ) {
                 Icon(Icons.Default.RocketLaunch, null, modifier = Modifier.size(16.dp))

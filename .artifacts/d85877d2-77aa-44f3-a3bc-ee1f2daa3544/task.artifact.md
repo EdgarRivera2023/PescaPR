@@ -1,16 +1,13 @@
-- [x] Create implementation plan
-- [x] Structural Refactoring
-    - [x] Create `data/SwellModels.kt`
-    - [x] Create `network/MarineWeatherService.kt`
-    - [x] Create `ui/components/ProSwellCard.kt`
-- [x] Optimize `MainActivity.kt` logic
-    - [x] Implement parallel swell probing
-    - [x] Refine probing hits (check for non-null hourly wave height)
-    - [x] Parallelize weather & swell fetching
-- [x] Finalize Module 1
-    - [x] Update `build.gradle.kts` version to `1.9.0`
-    - [x] Mark tasks as completed in `TODO_PRO_MIGRATION.md`
-    - [x] Add v1.9.0 notes to "Acerca de" dialog
-- [x] Verification
-    - [x] Build project
-    - [x] Create walkthrough artifact
+# Tasks - Module 3: Community Pins Network & Google Play Billing
+
+- [x] Integrate Google Play Billing Library (v7+)
+- [x] Update `PuntoPesca` and `SpotEntity` with `userId`
+- [x] Implement Room Migration 1 -> 2
+- [x] Create `SpotRepository.kt` with gated Firestore queries
+- [x] Create `MapViewModel.kt` with manual refresh
+- [x] Create `SubscriptionManager.kt` to manage Play Billing connection and reactive Pro entitlement
+- [x] Design "Upgrade to Pro" Paywall UI
+    - [x] Create `PaywallScreen.kt` in `ui/components/`
+    - [x] Add header, Pro badge, feature list, and dynamic price display
+    - [x] Implement primary "Subscribe" and secondary "Dismiss" buttons
+- [ ] Connect `SubscriptionManager` and `PaywallScreen` to `MainActivity`
