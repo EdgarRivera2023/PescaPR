@@ -39,7 +39,7 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 ## Version 2.3
 ## Module 5: Coastal Morphology Map Layers & Offline Mode
 - v2.3.0 [x] Create and apply custom JSON Map Style for coastal structures.
-- v2.3.1 [ ] Implement Official Guide Repository as a lightweight local data layer to parse and serve the "Official guide" directly from the device.
+- v2.3.1 [ ] Implement OfficialGuideRepository as a lightweight local data layer to parse and serve the "Oficial guide" directly from the device.
 - v2.3.2 [ ] Design the UI screen to display the Official Guide data, strictly observing state hoisted from the ViewModel.
 - v2.3.3 [ ] Research and implement basic tile caching for saved fishing spots.
 - v2.3.4 [ ] Add "Offline Mode" status indicator to the UI.
@@ -51,29 +51,6 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 - v2.4.2 [ ] Populate `res/values-es/strings.xml` with the corresponding Spanish translations.
 - v2.4.3 [ ] Refactor MainActivity and Jetpack Compose screens to utilize `stringResource()`.
 - v2.4.4 [ ] Enable `generateLocaleConfig = true` in `build.gradle.kts` for Android 13+ per-app language support.
-
-## Version 2.5
-## Module 7: UX Polish & Onboarding
-- v2.5.0 [ ] Implement Jetpack DataStore (Preferences) to manage local boolean flags without Firestore reads.
-- v2.5.1 [ ] Create a dynamic Onboarding Tutorial/Walkthrough for first-time app launches, checking the DataStore state.
-- v2.5.2 [ ] Add a "Skip" option for returning users.
-- v2.5.3 [ ] Implement isSystemInDarkTheme() in Compose to automatically sync the app's theme with the device's display settings.
-- v2.5.4 [ ] Add a manual Dark Mode toggle in the app Settings screen, persisting the user's preference in DataStore.
-
-## Version 2.6
-## MModule 8: Compliance & Retention
-- v2.6.0 [ ] Integrate the Google Play In-App Review API.
-- v2.6.1 [ ] Add a "Rate Your App" button to the Settings UI.
-- v2.6.2 [ ] Implement logic to prompt users for a review automatically after 3 successful log entries (using local counters).
-- v2.6.3 [ ] Draft Privacy Policy and Terms of Service.
-- v2.6.4 [ ] Embed Privacy Policy and TOS as zero-cost static HTML/Markdown assets, accessible via the Settings screen.
-
-## Parallel Track (Non-Code / Marketing)
-## App Store Optimization (ASO)
-- ASO.1 [ ] Conduct keyword research for local Puerto Rico surf fishing terminology.
-- ASO.2 [ ] Revamp the Google Play Store description to naturally integrate the new keywords.
-- ASO.3 [ ] Design feature-focused screenshots highlighting Pro tier tools (e.g., AI Insights, Swell Metrics).
-- ASO.4 [ ] Add engaging, descriptive captions to all Play Store images.
 
 ---
 **Current Status:** Module 4 complete (v2.2.0 to v2.2.3 done). Ready for Module 5 (v2.3).

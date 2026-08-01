@@ -96,6 +96,7 @@ import com.bradmir.pescapr.network.MarineWeatherService
 import com.bradmir.pescapr.ui.components.ProSwellCard
 import com.bradmir.pescapr.ui.components.PaywallDialog
 import com.bradmir.pescapr.ui.viewmodels.MapViewModel
+import com.bradmir.pescapr.ui.viewmodels.OfficialGuideViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import retrofit2.Retrofit
@@ -125,7 +126,8 @@ data class FichaPez(
     val regulacionRecreativa: String = "",
     val caracteristicas: List<String> = emptyList(),
     val puedeSerConfundidoCon: String = "",
-    val fotosUrls: List<String> = emptyList()
+    val fotosUrls: List<String> = emptyList(),
+    val localThumbResName: String = ""
 )
 
 data class ResultadoIdentificacion(
@@ -702,15 +704,24 @@ fun ResultadosFichaMatchCard(datos: ResultadoIdentificacion, db: FirebaseFiresto
 // --- TAB 3: GUÍA OFICIAL (User creates these) ---
 @Composable
 fun PantallaGuiaOficialTab() {
+    val context = LocalContext.current
+    val viewModel: OfficialGuideViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                val repository = OfficialGuideRepository(context.applicationContext)
+                return OfficialGuideViewModel(repository) as T
+            }
+        }
+    )
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
     val storage = remember { FirebaseStorage.getInstance() }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     // --- SEGURIDAD: MODO DESARROLLADOR ---
     var esDeveloper by remember { mutableStateOf(false) } 
 
-    val fichas = remember { mutableStateListOf<FichaPez>() }
+    val fichas by viewModel.fichas.collectAsState()
     var mostrarDialogoNueva by remember { mutableStateOf(false) }
     var fichaParaEditar by remember { mutableStateOf<FichaPez?>(null) }
     var subiendo by remember { mutableStateOf(false) }
@@ -730,7 +741,7 @@ fun PantallaGuiaOficialTab() {
     val urlsExistentes = remember { mutableStateListOf<String>() }
 
     var searchQuery by remember { mutableStateOf("") }
-    val filteredFichas = remember(searchQuery, fichas.size) {
+    val filteredFichas = remember(searchQuery, fichas) {
         if (searchQuery.isBlank()) fichas
         else {
             fichas.filter { 
@@ -762,48 +773,35 @@ fun PantallaGuiaOficialTab() {
         }
     }
 
-    DisposableEffect(Unit) {
-        val listener = db.collection("fichas_peces").addSnapshotListener { snap, error ->
-            if (error != null) {
-                error.printStackTrace()
-                return@addSnapshotListener
-            }
-            val listaFichas = snap?.documents?.mapNotNull { doc ->
-                FichaPez(
-                    id = doc.id,
-                    nombreCientifico = doc.getString("nombreCientifico") ?: "",
-                    nombreComun = doc.getString("nombreComun") ?: "",
-                    nombreIngles = doc.getString("nombreIngles") ?: "",
-                    regulacionComercial = doc.getString("regulacionComercial") ?: "",
-                    regulacionRecreativa = doc.getString("regulacionRecreativa") ?: "",
-                    caracteristicas = (doc.get("caracteristicas") as? List<*>)?.map { it.toString() } ?: emptyList(),
-                    puedeSerConfundidoCon = doc.getString("puedeSerConfundidoCon") ?: "",
-                    fotosUrls = (doc.get("fotosUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
-                )
-            }?.sortedBy { it.nombreCientifico } ?: emptyList()
-            
-            fichas.clear()
-            fichas.addAll(listaFichas)
-        }
-        onDispose { listener?.remove() }
-    }
-
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Guía Oficial", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            
-            if (BuildConfig.DEBUG) {
-                TextButton(onClick = { esDeveloper = !esDeveloper }) {
-                    Text(if(esDeveloper) "Admin ON" else "Modo Vista")
-                }
-            }
 
-            if (esDeveloper) {
-                IconButton(onClick = { 
-                    fichaParaEditar = null
-                    mostrarDialogoNueva = true 
-                }) {
-                    Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (BuildConfig.DEBUG) {
+                    TextButton(onClick = { esDeveloper = !esDeveloper }) {
+                        Text(if(esDeveloper) "Admin ON" else "Modo Vista")
+                    }
+                }
+
+                if (esDeveloper) {
+                    Button(onClick = {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val jsonString = com.google.gson.Gson().toJson(fichas)
+                            jsonString.chunked(3000).forEach { chunk ->
+                                android.util.Log.d("PescaPR_Export", chunk)
+                            }
+                        }
+                    }) {
+                        Text("Export JSON")
+                    }
+
+                    IconButton(onClick = { 
+                        fichaParaEditar = null
+                        mostrarDialogoNueva = true 
+                    }) {
+                        Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                    }
                 }
             }
         }
@@ -862,7 +860,35 @@ fun PantallaGuiaOficialTab() {
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Box {
-                        AsyncImage(model = ficha.fotosUrls.firstOrNull(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        val resId = remember(ficha.localThumbResName) {
+                            if (ficha.localThumbResName.isNotBlank()) {
+                                context.resources.getIdentifier(ficha.localThumbResName, "drawable", context.packageName)
+                            } else 0
+                        }
+
+                        if (resId != 0) {
+                            Image(
+                                painter = painterResource(id = resId),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                        }
+
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(0.3f)))
                         Column(modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)) {
                             Text(ficha.nombreComun, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
