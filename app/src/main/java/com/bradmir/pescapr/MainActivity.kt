@@ -15,10 +15,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -26,6 +25,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -78,6 +78,9 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.android.gms.maps.model.UrlTileProvider
+import android.util.Log
+import java.net.URL
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
@@ -97,6 +100,8 @@ import com.bradmir.pescapr.ui.components.ProSwellCard
 import com.bradmir.pescapr.ui.components.PaywallDialog
 import com.bradmir.pescapr.ui.viewmodels.MapViewModel
 import com.bradmir.pescapr.ui.viewmodels.OfficialGuideViewModel
+import com.bradmir.pescapr.utils.CachedTileProvider
+import com.bradmir.pescapr.utils.TileCacheManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import retrofit2.Retrofit
@@ -260,11 +265,11 @@ fun saveImageToInternalStorage(context: Context, bitmap: Bitmap, folder: String)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainTabsScreen(database: AppDatabase) {
-    val tabs = listOf("Mapa", "Identificar", "Guía Official", "Diario Privado")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    var currentScreen by remember { mutableIntStateOf(0) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+
     // --- GATED ACCESS (PRO TIER - SINGLE SOURCE OF TRUTH) ---
     val subscriptionManager = remember { SubscriptionManager(context) }
     val isUserPro by subscriptionManager.isProUser.collectAsState()
@@ -290,41 +295,158 @@ fun MainTabsScreen(database: AppDatabase) {
     var spotIdAFocar by remember { mutableStateOf<String?>(null) }
     var mostrarDialogoAcercaDe by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center) {
-                Image(painter = painterResource(id = R.drawable.logo_small), contentDescription = null, modifier = Modifier.size(40.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = "PescaPR", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            }
-            IconButton(onClick = { mostrarDialogoAcercaDe = true }) {
-                Icon(Icons.Default.Info, contentDescription = "Acerca de", tint = MaterialTheme.colorScheme.primary)
+    val screenTitles = listOf("Mapa", "Identificador y Regulaciones", "Guía Oficial", "Diario Privado / Records")
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = drawerState.isOpen,
+        drawerContent = {
+            ModalDrawerSheet {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_small),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .combinedClickable(
+                                onLongClick = {
+                                    subscriptionManager.toggleDebugProState()
+                                    if (BuildConfig.DEBUG) {
+                                        Toast.makeText(
+                                            context,
+                                            "Debug: Pro Tier set to ${subscriptionManager.isProUser.value}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
+                                onClick = {}
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "PescaPR Pro",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isUserPro) "Plan Pro Activo" else "Plan Gratuito",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isUserPro) MaterialTheme.colorScheme.primary else Color.Gray
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Map, contentDescription = null) },
+                    label = { Text("Mapa") },
+                    selected = currentScreen == 0,
+                    onClick = {
+                        currentScreen = 0
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    label = { Text("Identificador y Regulaciones") },
+                    selected = currentScreen == 1,
+                    onClick = {
+                        currentScreen = 1
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Book, contentDescription = null) },
+                    label = { Text("Guía Oficial") },
+                    selected = currentScreen == 2,
+                    onClick = {
+                        currentScreen = 2
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.List, contentDescription = null) },
+                    label = { Text("Diario Privado / Records") },
+                    selected = currentScreen == 3,
+                    onClick = {
+                        currentScreen = 3
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Info, contentDescription = "Acerca de") },
+                    label = { Text("Acerca de PescaPR") },
+                    selected = mostrarDialogoAcercaDe,
+                    onClick = {
+                        coroutineScope.launch { drawerState.close() }
+                        mostrarDialogoAcercaDe = true
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
-
-        TabRow(selectedTabIndex = pagerState.currentPage) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    text = { Text(title, style = MaterialTheme.typography.labelSmall) },
-                    selected = pagerState.currentPage == index,
-                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = screenTitles.getOrElse(currentScreen) { "PescaPR" },
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menú Principal")
+                        }
+                    }
                 )
             }
-        }
-
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f), userScrollEnabled = false) { page ->
-            when (page) {
-                0 -> PantallaMapaTab(database = database, repository = catchRepository, spotRepository = spotRepository, subscriptionManager = subscriptionManager, userId = userId, isPro = isUserPro, spotIdAFocar = spotIdAFocar, onFocoLogrado = { spotIdAFocar = null })
-                1 -> PantallaIdentificadorYRegulacionesTab()
-                2 -> PantallaGuiaOficialTab()
-                3 -> PantallaRecordsTab(database = database, repository = catchRepository, onIrALugar = { id -> 
-                    spotIdAFocar = id
-                    coroutineScope.launch { pagerState.animateScrollToPage(0) }
-                })
+        ) { paddingValues ->
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                when (currentScreen) {
+                    0 -> PantallaMapaTab(
+                        database = database,
+                        repository = catchRepository,
+                        spotRepository = spotRepository,
+                        subscriptionManager = subscriptionManager,
+                        userId = userId,
+                        isPro = isUserPro,
+                        spotIdAFocar = spotIdAFocar,
+                        onFocoLogrado = { spotIdAFocar = null }
+                    )
+                    1 -> PantallaIdentificadorYRegulacionesTab()
+                    2 -> PantallaGuiaOficialTab()
+                    3 -> PantallaRecordsTab(
+                        database = database,
+                        repository = catchRepository,
+                        onIrALugar = { id ->
+                            spotIdAFocar = id
+                            currentScreen = 0
+                        }
+                    )
+                }
             }
         }
     }
@@ -1959,13 +2081,33 @@ fun MapaPescapr(
     }
     
     val viewModel: MapViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-            return MapViewModel(spotRepository) as T
+            return MapViewModel(spotRepository, context.applicationContext) as T
         }
     })
 
-    val pinesComunidad by viewModel.pinesComunidad.collectAsState()
+      val pinesComunidad by viewModel.pinesComunidad.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isOffline by viewModel.isOffline.collectAsState()
+    val isMorphologyLayerEnabled by viewModel.isMorphologyLayerEnabled.collectAsState()
+
+    Log.d("MapStateCircuit", "UI Recomposed - isPro: $isPro")
+
+  val tileCacheManager = remember(context) { TileCacheManager(context.applicationContext) }
+  val bathymetryTileProvider = remember(isPro, tileCacheManager) {
+    if (!isPro) null
+    else CachedTileProvider(tileCacheManager = tileCacheManager, minZoom = 1)
+  }
+
+  val coastalMorphologyStyle = remember(context) {
+        try {
+            MapStyleOptions.loadRawResourceStyle(context, R.raw.coastal_morphology_style)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     
     val spotDao = remember { database.spotDao() }
     val recordDao = remember { database.recordDao() }
@@ -2261,91 +2403,169 @@ fun MapaPescapr(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = "DEBUG - isPro: $isPro",
+            color = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(100f)
+                .background(Color.Black)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+
+        AnimatedVisibility(
+            visible = isOffline,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f)
+                .padding(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 6.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Modo Off-line - Mostrando puntos guardados localmente",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
                 isMyLocationEnabled = hasLocationPermission,
-                mapType = MapType.SATELLITE,
-                mapStyleOptions = if (isPro) {
-                    try {
-                        MapStyleOptions.loadRawResourceStyle(context, R.raw.coastal_morphology_style)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
-                    }
-                } else null
+                mapType = if (isPro) MapType.HYBRID else MapType.NORMAL,
+      mapStyleOptions = null
             ),
-            onMapLongClick = { latLng ->
-                nuevaCoordenada = latLng
-                nombreNuevoPunto = ""
-                descripcionNuevoPunto = ""
-                mostrarDialogoNuevoPunto = true
-            }
-        ) {
-            val listaAMostrar = if (verPinesComunidad) pinesComunidad else misPuntos
-            listaAMostrar.forEach { spot ->
-                Marker(
-                    state = MarkerState(position = spot.coordenada),
-                    title = spot.nombre,
-                    onClick = { spotSeleccionado = spot; mostrarSheet = true; true },
-                    icon = if (verPinesComunidad) {
-                        BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                    } else {
-                        remember(context) {
-                            try {
-                                val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.pin_pescapr)
-                                if (bitmap != null) {
-                                    val scaled = bitmap.scale(100, 100, true)
-                                    BitmapDescriptorFactory.fromBitmap(scaled)
-                                } else null
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                null
-                            }
-                        }
-                    }
-                )
-            }
+            uiSettings = MapUiSettings(
+                scrollGesturesEnabled = true,
+                zoomGesturesEnabled = true,
+                tiltGesturesEnabled = true,
+                rotationGesturesEnabled = true,
+                zoomControlsEnabled = false,
+                myLocationButtonEnabled = true
+            ),
+                  onMapLongClick = { latLng ->
+            nuevaCoordenada = latLng
+            nombreNuevoPunto = ""
+            descripcionNuevoPunto = ""
+            mostrarDialogoNuevoPunto = true
         }
+    ) {
+        if (isPro && isMorphologyLayerEnabled && bathymetryTileProvider != null) {
+      TileOverlay(
+        tileProvider = bathymetryTileProvider,
+        visible = true,
+        transparency = 0.25f,
+        zIndex = 100f
+      )
+    }
 
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 16.dp)
-                .background(MaterialTheme.colorScheme.surface.copy(0.9f), RoundedCornerShape(24.dp))
-                .padding(4.dp)
-        ) {
-            TextButton(onClick = { verPinesComunidad = false }) {
-                Text("Mis Pines", color = if (!verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+    val listaAMostrar = if (verPinesComunidad) pinesComunidad else misPuntos
+    listaAMostrar.forEach { spot ->
+      Marker(
+        state = MarkerState(position = spot.coordenada),
+        title = spot.nombre,
+        onClick = { spotSeleccionado = spot; mostrarSheet = true; true },
+        icon = if (verPinesComunidad) {
+          BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+        } else {
+          remember(context) {
+            try {
+              val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.pin_pescapr)
+              if (bitmap != null) {
+                val scaled = bitmap.scale(100, 100, true)
+                BitmapDescriptorFactory.fromBitmap(scaled)
+              } else null
+            } catch (e: Exception) {
+              e.printStackTrace()
+              null
             }
-            TextButton(
-                onClick = { if (isPro) verPinesComunidad = true },
-                enabled = true // Clickable to show teaser or disabled
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Comunidad", color = if (verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
-                    if (!isPro) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
-                    }
-                }
-            }
+          }
+        }
+      )
+    }
+  }
+
+  Row(
+    modifier = Modifier
+      .align(Alignment.TopCenter)
+      .padding(top = 16.dp)
+      .background(MaterialTheme.colorScheme.surface.copy(0.9f), RoundedCornerShape(24.dp))
+      .padding(4.dp)
+  ) {
+    TextButton(onClick = { verPinesComunidad = false }) {
+      Text("Mis Pines", color = if (!verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+    }
+    TextButton(
+      onClick = { if (isPro) verPinesComunidad = true else mostrarPaywallDialog = true },
+      enabled = true
+    ) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Comunidad", color = if (verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
+        if (!isPro) {
+          Spacer(Modifier.width(4.dp))
+          Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
+        }
+      }
+    }
+    TextButton(
+      onClick = {
+        if (!viewModel.toggleMorphologyLayer(isPro)) {
+          mostrarPaywallDialog = true
+        }
+      }
+    ) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Morfología", color = if (isMorphologyLayerEnabled) MaterialTheme.colorScheme.primary else Color.Gray)
+        if (!isPro) {
+          Spacer(Modifier.width(4.dp))
+          Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
+        }
+      }
+    }
+  }         }
 
             if (verPinesComunidad) {
-                IconButton(
-                    onClick = { viewModel.refreshPins(userId, isPro) },
-                    enabled = !isLoading
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
-        }
+      IconButton(
+        onClick = { viewModel.refreshPins(userId, isPro) },
+        enabled = !isLoading
+      ) {
+    if (verPinesComunidad) {
+    IconButton(
+      onClick = { viewModel.refreshPins(userId, isPro) },
+      enabled = !isLoading
+    ) {
+      if (isLoading) {
+        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+      } else {
+        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+      }
     }
+  }
+}
+}
 
     if (mostrarPicosDialog) {
         DialogoPicosDeOro(peaks = goldenPeaks) { mostrarPicosDialog = false }

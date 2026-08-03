@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
+import com.bradmir.pescapr.BuildConfig
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +25,21 @@ class SubscriptionManager(
 
     private val _isProUser = MutableStateFlow(false)
     val isProUser: StateFlow<Boolean> = _isProUser.asStateFlow()
+
+    val isPro: Boolean
+        get() = _isProUser.value
+
+    fun toggleDebugProState() {
+        if (BuildConfig.DEBUG) {
+            _isProUser.value = !_isProUser.value
+        }
+    }
+
+    fun setDebugProState(isPro: Boolean) {
+        if (BuildConfig.DEBUG) {
+            _isProUser.value = isPro
+        }
+    }
 
     private var billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
@@ -76,7 +92,9 @@ class SubscriptionManager(
                         purchase.purchaseState == Purchase.PurchaseState.PURCHASED && purchase.isAcknowledged
                     }
 
-                    _isProUser.value = hasActiveSub
+                    if (!BuildConfig.DEBUG || hasActiveSub) {
+                        _isProUser.value = hasActiveSub
+                    }
 
                     if (userId.isNotBlank()) {
                         firestore.collection("users")

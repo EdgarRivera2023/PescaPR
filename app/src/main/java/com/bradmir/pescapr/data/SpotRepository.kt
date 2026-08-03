@@ -7,6 +7,8 @@ import kotlinx.coroutines.withContext
 
 class SpotRepository(private val db: FirebaseFirestore) {
 
+    private var cachedPins: List<PuntoPesca> = emptyList()
+
     suspend fun fetchCommunityPins(userId: String, isPro: Boolean): List<PuntoPesca> = withContext(Dispatchers.IO) {
         try {
             val collection = db.collection("spots")
@@ -17,7 +19,7 @@ class SpotRepository(private val db: FirebaseFirestore) {
             }
 
             val snapshot = query.get().await()
-            snapshot.documents.mapNotNull { doc ->
+            val fetchedPins = snapshot.documents.mapNotNull { doc ->
                 PuntoPesca(
                     id = doc.id,
                     latitude = doc.getDouble("lat") ?: 0.0,
@@ -28,9 +30,13 @@ class SpotRepository(private val db: FirebaseFirestore) {
                     userId = doc.getString("userId") ?: ""
                 )
             }
+            if (fetchedPins.isNotEmpty()) {
+                cachedPins = fetchedPins
+            }
+            fetchedPins.ifEmpty { cachedPins }
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            cachedPins
         }
     }
 

@@ -39,10 +39,11 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 ## Version 2.3
 ## Module 5: Coastal Morphology Map Layers & Offline Mode
 - v2.3.0 [x] Create and apply custom JSON Map Style for coastal structures.
-- v2.3.1 [ ] Implement OfficialGuideRepository as a lightweight local data layer to parse and serve the "Oficial guide" directly from the device.
-- v2.3.2 [ ] Design the UI screen to display the Official Guide data, strictly observing state hoisted from the ViewModel.
-- v2.3.3 [ ] Research and implement basic tile caching for saved fishing spots.
-- v2.3.4 [ ] Add "Offline Mode" status indicator to the UI.
+- v2.3.1 [x] Implement OfficialGuideRepository as a lightweight local data layer to parse and serve the "Oficial guide" directly from the device.
+- v2.3.2 [x] Design the UI screen to display the Official Guide data, strictly observing state hoisted from the ViewModel.
+- v2.3.3 [x] Implement dynamic UrlTileProvider mapping for Pro Catastro tiles and default satellite fallback for Free tier.
+- v2.3.4 [x] Remove redundant UI toggle buttons; tie layer visibility and map type exclusively to the isPro entitlement state.
+- v2.3.5 [x] Add "Offline Mode" status indicator to the UI.
 
 ## Version 2.4
 ## Module 6: Bilingual Localization (English & Spanish)
@@ -76,4 +77,4 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 - ASO.4 [ ] Add engaging, descriptive captions to all Play Store images.
 
 ---
-**Current Status:** Module 4 complete (v2.2.0 to v2.2.3 done). Ready for Module 5 (v2.3).
+**Current Status:** Module 5 complete (v2.3.0 to v2.3.5 done). Ready for Module 6 (Bilingual Localization / v2.4).
