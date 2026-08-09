@@ -28,6 +28,9 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 - v2.1.3 [x] Create `SubscriptionManager` to handle Pro entitlement flags.
 - v2.1.4 [x] Design the "Upgrade to Pro" paywall UI.
 - v2.1.5 [x] Implement privacy-first pin sharing (static pins only, no live tracking).
+- v2.1.6 [x] Implement `SpotPhotoRepository` for Firebase Storage/Firestore integration.
+- v2.1.7 [x] Create `ApprovedSpotPhoto` model and metadata for `PuntoPesca`.
+- v2.1.8 [x] Develop Admin Moderation UI for approving/rejecting user-submitted photos.
 
 ## Version 2.2
 ## Module 4: Water Temperature Trends (Pro Exclusive)
@@ -40,14 +43,14 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 ## Module 5: Coastal Morphology Map Layers & Offline Mode
 - v2.3.0 [x] Establish a GeoJSON schema and manually digitize visual data from Catastro/JP
   into map polygons and polylines (e.g., reefs, drop-offs).
-- v2.3.1 [ ] Curate the dataset with specialized metadata (e.g., Target: Mutton Snapper,
+- v2.3.1 [x] Curate the dataset with specialized metadata (e.g., Target: Mutton Snapper,
   Gear: 45 lb braided main line, Bottom: Rock/Sand).
 - v2.3.2 [ ] Secure all mapping API keys within the local.properties file and integrate the
   Maps SDK Utility Library for GeoJSON parsing.
-- v2.3.3 [ ] Implement GeoJsonLayer to render the proprietary structure files locally from
+- v2.3.3 [x] Implement GeoJsonLayer to render the proprietary structure files locally from
   the assets/ folder over the base satellite map for Pro users.
-- v2.3.4 [ ] Implement OnFeatureClickListener to trigger a BottomSheet displaying structure
-  metadata, and sync structural exposure checks directly with the tide manometer UI.
+- v2.3.4 [ ] Implement non-intercepting interaction design for structure metadata, ensuring
+  GeoJSON feature taps do not block interaction with fishing spot markers.
 - v2.3.5 [ ] Configure a remote fetch mechanism (e.g., Firebase Cloud Storage) for GeoJSON
   files to enable over-the-air structure updates without requiring Play Store app releases.
 
@@ -73,14 +76,38 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 - v2.6.1 [ ] Add a "Rate Your App" button to the Settings UI.
 - v2.6.2 [ ] Implement logic to prompt users for a review automatically after 3 successful log entries (using local counters).
 - v2.6.3 [ ] Draft Privacy Policy and Terms of Service.
-- v2.6.4 [ ] Embed Privacy Policy and TOS as zero-cost static HTML/Markdown assets, accessible via the Settings screen.
+- v2.6.4 [ ] Embed Privacy Policy and TOS as zero-cost static HTML/Markdown assets, accessible via the Settings UI.
 
-## Parallel Track (Non-Code / Marketing)
-## App Store Optimization (ASO)
+## Version 2.7
+## Module 9: In-App Update Management
+- v2.7.0 [ ] Integrate Google Play In-App Update SDK dependencies.
+- v2.7.1 [ ] Implement a centralized `UpdateManager` to share logic for availability, downloading, and installation states.
+- v2.7.2 [ ] Add automatic update check on application launch (Flexible for normal, Immediate for critical/breaking).
+- v2.7.3 [ ] Implement Flexible Update UI: Prompt "Update Now" vs "Later" without permanent suppression.
+- v2.7.4 [ ] Support Immediate Update flow for mandatory security or API compatibility releases.
+- v2.7.5 [ ] Add "Check for Updates" to the About section, displaying the current version and providing manual trigger without app restart.
+- v2.7.6 [ ] Handle lifecycle events: cancellation, failure, interruption, and downloaded-but-not-applied states.
+- v2.7.7 [ ] Validate complete update lifecycle using Internal test track releases with `versionCode` progression.
+
+## Ongoing Tracks
+
+### Coastal Morphology Dataset Expansion
+The morphology dataset is a continuously evolving PescaPR data asset and is not tied to a specific application version. This track represents the expansion and maintenance of the dataset after the initial foundation established in Module 5.
+
+- Continue identifying and digitizing reefs, troughs, drop-offs, sandbars, channels, cuts, points, and other fishing-relevant coastal structures throughout Puerto Rico.
+- Expand geographic coverage.
+- Validate existing morphology features and correct inaccurate geometry.
+- Enrich morphology features with fishing-relevant metadata where appropriate.
+- Maintain GeoJSON data quality and consistency as the dataset grows.
+- Prioritize expansion based on fishing relevance, user demand, available source data, and field knowledge.
+
+### App Store Optimization (ASO)
 - ASO.1 [ ] Conduct keyword research for local Puerto Rico surf fishing terminology.
 - ASO.2 [ ] Revamp the Google Play Store description to naturally integrate the new keywords.
 - ASO.3 [ ] Design feature-focused screenshots highlighting Pro tier tools (e.g., AI Insights, Swell Metrics).
 - ASO.4 [ ] Add engaging, descriptive captions to all Play Store images.
 
 ---
-**Current Status:** Module 5 complete (v2.3.0 to v2.3.5 done). Ready for Module 6 (Bilingual Localization / v2.4).
+**Current Status:** Module 5 partially complete (v2.3.0, v2.3.1, v2.3.3 done).
+
+ 
