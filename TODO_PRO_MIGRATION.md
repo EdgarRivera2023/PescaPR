@@ -45,10 +45,12 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
   into map polygons and polylines (e.g., reefs, drop-offs).
 - v2.3.1 [x] Curate the dataset with specialized metadata (e.g., Target: Mutton Snapper,
   Gear: 45 lb braided main line, Bottom: Rock/Sand).
-- v2.3.2 [ ] Secure all mapping API keys within the local.properties file and integrate the
-  Maps SDK Utility Library for GeoJSON parsing.
-- v2.3.3 [x] Implement GeoJsonLayer to render the proprietary structure files locally from
-  the assets/ folder over the base satellite map for Pro users.
+- v2.3.2 [x] Keep the Maps API key in ignored local.properties, inject it into the Android
+  manifest, and use schema-constrained org.json parsing with Maps Compose overlays without
+  the unused direct Maps SDK Utility Library dependency.
+- v2.3.3 [x] Implement CoastalMorphologyLayer to render proprietary local GeoJSON from
+  res/raw as non-clickable Maps Compose Polygon and Polyline overlays over the satellite
+  map for Pro users.
 - v2.3.4 [ ] Implement non-intercepting interaction design for structure metadata, ensuring
   GeoJSON feature taps do not block interaction with fishing spot markers.
 - v2.3.5 [ ] Configure a remote fetch mechanism (e.g., Firebase Cloud Storage) for GeoJSON

@@ -10,7 +10,6 @@ activityCompose = "1.8.2"
 kotlin = "1.9.22"
 composeBom = "2024.02.00"
 mapsCompose = "4.4.1"
-mapsUtils = "3.8.0"
 playServicesMaps = "18.2.0"
 playServicesLocation = "21.2.0"
 kotlinxCoroutinesPlayServices = "1.8.1"
@@ -38,7 +37,6 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
-maps-utils = { group = "com.google.maps.android", name = "android-maps-utils", version.ref = "mapsUtils" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
