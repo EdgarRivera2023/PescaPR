@@ -27,61 +27,25 @@ fun WaterTempCard(
     isPro: Boolean,
     currentWaterTemp: Float?,
     trendResult: ThermalTrendResult?,
+    ambientAirTempF: Float? = null,
     onUpgradeClick: () -> Unit = {},
 ) {
-    if (!isPro) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(0.2f)),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(0.3f)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Thermostat,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Temperatura del Agua & Tendencia Térmica",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Desbloquea tendencias térmicas de 7 días y temperatura del agua en tiempo real con PescaPR Pro.",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = onUpgradeClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.RocketLaunch,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Actualizar a Pro", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
-    } else {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(0.3f)),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(0.3f)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+    if (!isPro) return
+
+    val effectiveTemp = when {
+        currentWaterTemp != null && currentWaterTemp > 0f -> currentWaterTemp
+        ambientAirTempF != null && ambientAirTempF > 0f -> ambientAirTempF - 2.0f
+        else -> null
+    }
+    val isEstimated = (currentWaterTemp == null || currentWaterTemp <= 0f) && effectiveTemp != null
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(0.3f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(0.3f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -125,12 +89,19 @@ fun WaterTempCard(
                 ) {
                     Column {
                         Text(
-                            text = currentWaterTemp?.let { "${String.format(Locale.US, "%.1f", it)}°F" } ?: "N/A",
+                            text = effectiveTemp?.let { "${String.format(Locale.US, "%.1f", it)}°F" } ?: "N/A",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        if ((trendResult?.averageTemp ?: 0f) > 0f) {
+                        if (isEstimated) {
+                            Text(
+                                text = "Estimado (Aire - 2°F)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } else if ((trendResult?.averageTemp ?: 0f) > 0f) {
                             Text(
                                 text = "Promedio 7d: ${String.format(Locale.US, "%.1f", trendResult?.averageTemp)}°F",
                                 style = MaterialTheme.typography.labelSmall,
@@ -193,4 +164,3 @@ fun WaterTempCard(
             }
         }
     }
-}

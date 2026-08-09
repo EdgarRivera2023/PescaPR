@@ -1,6 +1,7 @@
 package com.bradmir.pescapr
 
 import android.content.Context
+import com.bradmir.pescapr.data.*
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -27,6 +28,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -96,8 +98,16 @@ import com.google.maps.android.compose.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bradmir.pescapr.data.*
 import com.bradmir.pescapr.network.MarineWeatherService
-import com.bradmir.pescapr.ui.components.ProSwellCard
+import com.bradmir.pescapr.ui.CoastalMorphologyLayer
+import com.bradmir.pescapr.ui.components.GoldenDayBanner
+import com.bradmir.pescapr.ui.components.GoldenDayPlannerCard
+import com.bradmir.pescapr.ui.components.GoldenDayPlannerSheet
 import com.bradmir.pescapr.ui.components.PaywallDialog
+import com.bradmir.pescapr.ui.components.ProFeatureActionButtons
+import com.bradmir.pescapr.ui.components.ProFeaturePaywallDialog
+import com.bradmir.pescapr.ui.components.ProFeatureType
+import com.bradmir.pescapr.ui.components.ProSwellCard
+import com.bradmir.pescapr.ui.components.WaterTempCard
 import com.bradmir.pescapr.ui.viewmodels.MapViewModel
 import com.bradmir.pescapr.ui.viewmodels.OfficialGuideViewModel
 import com.bradmir.pescapr.utils.CachedTileProvider
@@ -274,7 +284,29 @@ fun MainTabsScreen(database: AppDatabase) {
     val subscriptionManager = remember { SubscriptionManager(context) }
     val isUserPro by subscriptionManager.isProUser.collectAsState()
 
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val userIdState = produceState(initialValue = FirebaseAuth.getInstance().currentUser?.uid ?: "") {
+        val auth = FirebaseAuth.getInstance()
+        val listener = FirebaseAuth.AuthStateListener { a ->
+            value = a.currentUser?.uid ?: ""
+        }
+        auth.addAuthStateListener(listener)
+        awaitDispose {
+            auth.removeAuthStateListener(listener)
+        }
+    }
+    val userId by userIdState
+
+    // --- SILENT ANONYMOUS AUTHENTICATION ON STARTUP ---
+    LaunchedEffect(Unit) {
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            try {
+                auth.signInAnonymously().await()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     LaunchedEffect(userId) {
         if (userId.isNotBlank()) {
@@ -294,8 +326,6 @@ fun MainTabsScreen(database: AppDatabase) {
     // Foco para navegación desde Récords -> Mapa
     var spotIdAFocar by remember { mutableStateOf<String?>(null) }
     var mostrarDialogoAcercaDe by remember { mutableStateOf(false) }
-
-    val screenTitles = listOf("Mapa", "Identificador y Regulaciones", "Guía Oficial", "Diario Privado / Records")
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -410,11 +440,42 @@ fun MainTabsScreen(database: AppDatabase) {
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(
-                            text = screenTitles.getOrElse(currentScreen) { "PescaPR" },
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        val brandName = if (isUserPro) "PescaPR Pro" else "PescaPR"
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.logo_small),
+                                contentDescription = "PescaPR Logo",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                subscriptionManager.toggleDebugProState()
+                                                if (BuildConfig.DEBUG) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Debug: Pro Tier set to ${subscriptionManager.isProUser.value}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            }
+                                        )
+                                    }
+                            )
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = brandName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     },
                     navigationIcon = {
                         IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
@@ -672,7 +733,11 @@ fun PantallaMapaTab(
     spotIdAFocar: String? = null,
     onFocoLogrado: () -> Unit = {}
 ) {
-    MapaPescapr(
+    var showMorphologyLayer by remember { mutableStateOf(false) }
+    var activePaywallFeature by remember { mutableStateOf<ProFeatureType?>(null) }
+    var mostrarPaywallSheet by remember { mutableStateOf(false) }
+
+    com.bradmir.pescapr.ui.MapaPescapr(
         database = database,
         repository = repository,
         spotRepository = spotRepository,
@@ -680,8 +745,47 @@ fun PantallaMapaTab(
         userId = userId,
         isPro = isPro,
         spotIdAFocar = spotIdAFocar,
-        onFocoLogrado = onFocoLogrado
+        onFocoLogrado = onFocoLogrado,
+        showMorphologyLayer = showMorphologyLayer,
+        onToggleMorphology = { showMorphologyLayer = !showMorphologyLayer },
+        onTriggerPaywall = { featureType -> activePaywallFeature = featureType }
     )
+
+    activePaywallFeature?.let { feature ->
+        ProFeaturePaywallDialog(
+            feature = feature,
+            onDismiss = { activePaywallFeature = null },
+            onUpgradeClick = {
+                activePaywallFeature = null
+                mostrarPaywallSheet = true
+            }
+        )
+    }
+
+    if (mostrarPaywallSheet) {
+        val context = LocalContext.current
+        var productDetails by remember { mutableStateOf<com.android.billingclient.api.ProductDetails?>(null) }
+        var cargandoPaywall by remember { mutableStateOf(true) }
+
+        LaunchedEffect(Unit) {
+            subscriptionManager.queryProductDetails("pescapr_pro_monthly") { details ->
+                productDetails = details
+                cargandoPaywall = false
+            }
+        }
+
+        PaywallDialog(
+            productDetails = productDetails,
+            isLoading = cargandoPaywall,
+            onSubscribeClicked = {
+                val activity = context as? android.app.Activity
+                if (activity != null && productDetails != null) {
+                    subscriptionManager.launchBillingFlow(activity, productDetails!!)
+                }
+            },
+            onDismiss = { mostrarPaywallSheet = false }
+        )
+    }
 }
 
 // --- TAB 2: IDENTIFICADOR (Matching with Cards) ---
@@ -845,6 +949,7 @@ fun PantallaGuiaOficialTab() {
 
     val fichas by viewModel.fichas.collectAsState()
     var mostrarDialogoNueva by remember { mutableStateOf(false) }
+    var mostrarModeracionFotos by remember { mutableStateOf(false) }
     var fichaParaEditar by remember { mutableStateOf<FichaPez?>(null) }
     var subiendo by remember { mutableStateOf(false) }
     
@@ -907,6 +1012,10 @@ fun PantallaGuiaOficialTab() {
                 }
 
                 if (esDeveloper) {
+                    Button(onClick = { mostrarModeracionFotos = true }) {
+                        Text("Moderación Fotos")
+                    }
+
                     Button(onClick = {
                         coroutineScope.launch(Dispatchers.IO) {
                             val jsonString = com.google.gson.Gson().toJson(fichas)
@@ -995,6 +1104,13 @@ fun PantallaGuiaOficialTab() {
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
+                        } else if (ficha.fotosUrls.firstOrNull()?.isNotBlank() == true) {
+                            AsyncImage(
+                                model = ficha.fotosUrls.firstOrNull(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
                         } else {
                             Box(
                                 modifier = Modifier
@@ -1041,6 +1157,10 @@ fun PantallaGuiaOficialTab() {
                 Text("Tienes $reportesCount reportes pendientes por revisar.", modifier = Modifier.padding(16.dp))
             }
         }
+    }
+
+    if (mostrarModeracionFotos) {
+        AdminPhotoModerationDialog(onDismiss = { mostrarModeracionFotos = false })
     }
 
     if (mostrarDialogoNueva) {
@@ -1808,16 +1928,21 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
                                 Spacer(Modifier.height(8.dp))
                                 
                                 capturas.forEach { record ->
-                                    val nombreLugar = if (record.spotId.isNotEmpty()) spots[record.spotId] ?: record.lugar else record.lugar
+                                    val isSpotValid = record.spotId.isNotBlank() && record.spotId != "0"
+                                    val nombreLugar = if (isSpotValid) spots[record.spotId] ?: record.lugar else record.lugar
                                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Column {
+                                        Column(
+                                            modifier = if (isSpotValid) {
+                                                Modifier.clickable { onIrALugar(record.spotId) }
+                                            } else Modifier
+                                        ) {
                                             Text(nombreLugar, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                                             Text(record.fecha, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                                         }
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text("${record.peso} | ${record.longitud}", style = MaterialTheme.typography.bodySmall)
                                             Row {
-                                                if (record.spotId.isNotEmpty()) {
+                                                if (isSpotValid) {
                                                     IconButton(onClick = {
                                                         onIrALugar(record.spotId)
                                                     }, modifier = Modifier.size(24.dp)) {
@@ -2090,25 +2215,9 @@ fun MapaPescapr(
       val pinesComunidad by viewModel.pinesComunidad.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
-    val isMorphologyLayerEnabled by viewModel.isMorphologyLayerEnabled.collectAsState()
 
     Log.d("MapStateCircuit", "UI Recomposed - isPro: $isPro")
 
-  val tileCacheManager = remember(context) { TileCacheManager(context.applicationContext) }
-  val bathymetryTileProvider = remember(isPro, tileCacheManager) {
-    if (!isPro) null
-    else CachedTileProvider(tileCacheManager = tileCacheManager, minZoom = 1)
-  }
-
-  val coastalMorphologyStyle = remember(context) {
-        try {
-            MapStyleOptions.loadRawResourceStyle(context, R.raw.coastal_morphology_style)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-    
     val spotDao = remember { database.spotDao() }
     val recordDao = remember { database.recordDao() }
     val coroutineScope = rememberCoroutineScope()
@@ -2123,6 +2232,7 @@ fun MapaPescapr(
 
     val misPuntos = remember { mutableStateListOf<PuntoPesca>() }
     var verPinesComunidad by remember { mutableStateOf(false) }
+    var showMorphologyLayer by remember { mutableStateOf(false) }
     var spotSeleccionado by remember { mutableStateOf<PuntoPesca?>(null) }
     var mostrarSheet by remember { mutableStateOf(false) }
 
@@ -2249,6 +2359,10 @@ fun MapaPescapr(
     var goldenPeaks by remember { mutableStateOf<List<GoldenPeak>>(emptyList()) }
     var calculandoPicos by remember { mutableStateOf(false) }
     var mostrarPicosDialog by remember { mutableStateOf(false) }
+    var activePaywallFeature by remember { mutableStateOf<ProFeatureType?>(null) }
+    var expandedProFeature by remember { mutableStateOf<ProFeatureType?>(null) }
+    var mostrar30DayPlannerSheet by remember { mutableStateOf(false) }
+    var goldenTide30DayList by remember { mutableStateOf<List<GoldenDayPrediction>>(emptyList()) }
 
     var refreshKey by remember { mutableIntStateOf(0) }
 
@@ -2377,11 +2491,13 @@ fun MapaPescapr(
             misPuntos.addAll(entities.map { entity ->
                 PuntoPesca(
                     id = entity.id.toString(),
+                    firestoreId = entity.firestoreId,
                     latitude = entity.latitud,
                     longitude = entity.longitud,
                     nombre = entity.nombre,
                     descripcion = entity.descripcion,
                     fotosUrls = entity.fotosUrls,
+                    approvedPhotos = entity.approvedPhotos,
                     userId = entity.userId
                 )
             })
@@ -2403,16 +2519,6 @@ fun MapaPescapr(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "DEBUG - isPro: $isPro",
-            color = Color.White,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(100f)
-                .background(Color.Black)
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-
         AnimatedVisibility(
             visible = isOffline,
             enter = fadeIn() + expandVertically(),
@@ -2455,7 +2561,7 @@ fun MapaPescapr(
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
                 isMyLocationEnabled = hasLocationPermission,
-                mapType = if (isPro) MapType.HYBRID else MapType.NORMAL,
+                mapType = MapType.SATELLITE,
       mapStyleOptions = null
             ),
             uiSettings = MapUiSettings(
@@ -2473,16 +2579,9 @@ fun MapaPescapr(
             mostrarDialogoNuevoPunto = true
         }
     ) {
-        if (isPro && isMorphologyLayerEnabled && bathymetryTileProvider != null) {
-      TileOverlay(
-        tileProvider = bathymetryTileProvider,
-        visible = true,
-        transparency = 0.25f,
-        zIndex = 100f
-      )
-    }
+        CoastalMorphologyLayer(enabled = isPro && showMorphologyLayer)
 
-    val listaAMostrar = if (verPinesComunidad) pinesComunidad else misPuntos
+        val listaAMostrar = if (verPinesComunidad) pinesComunidad else misPuntos
     listaAMostrar.forEach { spot ->
       Marker(
         state = MarkerState(position = spot.coordenada),
@@ -2508,64 +2607,112 @@ fun MapaPescapr(
     }
   }
 
-  Row(
-    modifier = Modifier
-      .align(Alignment.TopCenter)
-      .padding(top = 16.dp)
-      .background(MaterialTheme.colorScheme.surface.copy(0.9f), RoundedCornerShape(24.dp))
-      .padding(4.dp)
-  ) {
-    TextButton(onClick = { verPinesComunidad = false }) {
-      Text("Mis Pines", color = if (!verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
-    }
-    TextButton(
-      onClick = { if (isPro) verPinesComunidad = true else mostrarPaywallDialog = true },
-      enabled = true
-    ) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Comunidad", color = if (verPinesComunidad) MaterialTheme.colorScheme.primary else Color.Gray)
-        if (!isPro) {
-          Spacer(Modifier.width(4.dp))
-          Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
-        }
-      }
-    }
-    TextButton(
-      onClick = {
-        if (!viewModel.toggleMorphologyLayer(isPro)) {
-          mostrarPaywallDialog = true
-        }
-      }
-    ) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Morfología", color = if (isMorphologyLayerEnabled) MaterialTheme.colorScheme.primary else Color.Gray)
-        if (!isPro) {
-          Spacer(Modifier.width(4.dp))
-          Icon(Icons.Default.Lock, null, modifier = Modifier.size(12.dp), tint = Color.Gray)
-        }
-      }
-    }
-  }         }
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 12.dp)
+                .zIndex(5f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 6.dp,
+                tonalElevation = 2.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        onClick = { verPinesComunidad = false },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (!verPinesComunidad) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    ) {
+                        Text(
+                            text = "Mis Spots",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (!verPinesComunidad) FontWeight.Bold else FontWeight.Normal,
+                            color = if (!verPinesComunidad) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-            if (verPinesComunidad) {
-      IconButton(
-        onClick = { viewModel.refreshPins(userId, isPro) },
-        enabled = !isLoading
-      ) {
-    if (verPinesComunidad) {
-    IconButton(
-      onClick = { viewModel.refreshPins(userId, isPro) },
-      enabled = !isLoading
-    ) {
-      if (isLoading) {
-        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-      } else {
-        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-      }
-    }
-  }
-}
-}
+                    Surface(
+                        onClick = {
+                            if (isPro) {
+                                verPinesComunidad = true
+                            } else {
+                                mostrarPaywallDialog = true
+                            }
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (verPinesComunidad) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Comunidad",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (verPinesComunidad) FontWeight.Bold else FontWeight.Normal,
+                                color = if (verPinesComunidad) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (!isPro) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Pro",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = if (verPinesComunidad) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Surface(
+                onClick = {
+                    if (isPro) {
+                        showMorphologyLayer = !showMorphologyLayer
+                    } else {
+                        activePaywallFeature = ProFeatureType.MORFOLOGIA
+                    }
+                },
+                shape = CircleShape,
+                color = if (showMorphologyLayer) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                shadowElevation = 6.dp,
+                tonalElevation = 2.dp
+            ) {
+                Box(
+                    modifier = Modifier.padding(10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = "Morfología Costera",
+                        tint = if (showMorphologyLayer) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        if (verPinesComunidad) {
+            IconButton(
+                onClick = { viewModel.refreshPins(userId, isPro) },
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
 
     if (mostrarPicosDialog) {
         DialogoPicosDeOro(peaks = goldenPeaks) { mostrarPicosDialog = false }
@@ -2589,13 +2736,16 @@ fun MapaPescapr(
                                     
                                     val spotIdInt = spotActual.id.toIntOrNull() ?: 0
                                     val entity = SpotEntity(
-                                        id = spotIdInt,
-                                        nombre = spotActual.nombre,
-                                        descripcion = spotActual.descripcion,
-                                        latitud = spotActual.coordenada.latitude,
-                                        longitud = spotActual.coordenada.longitude,
-                                        fotosUrls = currentFotos
-                                    )
+                    id = spotIdInt,
+                    nombre = spotActual.nombre,
+                    descripcion = spotActual.descripcion,
+                    latitud = spotActual.coordenada.latitude,
+                    longitud = spotActual.coordenada.longitude,
+                    fotosUrls = currentFotos,
+                    userId = spotActual.userId,
+                    firestoreId = spotActual.firestoreId,
+                    approvedPhotos = spotActual.approvedPhotos
+                )
                                     spotDao.updateSpot(entity)
                                     Toast.makeText(context, "Foto añadida localmente", Toast.LENGTH_SHORT).show()
                                 }
@@ -2691,46 +2841,72 @@ fun MapaPescapr(
                         }
                     }
 
-                    if (isPro) {
-                        Spacer(Modifier.height(16.dp))
-                        if (cargandoSwell) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape))
-                        } else if (swellMetrics != null) {
-                            ProSwellCard(metrics = swellMetrics!!)
-                            Text(
-                                "Debug Marejada: Probes=$swellProbePointsAttempted, Hits=$swellProbeHits",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
-                            )
-                        } else {
-                            // Mostrar mensaje de que el spot no es costero o no hay datos
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.3f))
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.height(16.dp))
+                    ProFeatureActionButtons(
+                        selectedFeature = if (isPro) expandedProFeature else null,
+                        onFeatureClick = { feature ->
+                            if (isPro) {
+                                if (feature == ProFeatureType.PLANIFICADOR) {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        val list = generate30DayGoldenTideWindows(
+                                            spotActual?.latitude ?: 18.2208,
+                                            spotActual?.longitude ?: -66.5901
+                                        )
+                                        withContext(Dispatchers.Main) {
+                                            goldenTide30DayList = list
+                                            mostrar30DayPlannerSheet = true
+                                        }
+                                    }
+                                } else {
+                                    expandedProFeature = if (expandedProFeature == feature) null else feature
+                                }
+                            } else {
+                                activePaywallFeature = feature
+                            }
+                        }
+                    )
+
+                    if (isPro && expandedProFeature != null) {
+                        Spacer(Modifier.height(12.dp))
+                        when (expandedProFeature) {
+                            ProFeatureType.TEMP_TENDENCIA -> {
+                                WaterTempCard(
+                                    isPro = true,
+                                    currentWaterTemp = null,
+                                    trendResult = null,
+                                    ambientAirTempF = datosClima?.main?.temp?.toFloat()
+                                )
+                            }
+                            ProFeatureType.MAREJADAS -> {
+                                if (cargandoSwell) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape))
+                                } else if (swellMetrics != null) {
+                                    ProSwellCard(metrics = swellMetrics!!)
+                                } else {
                                     Text(
                                         "Métricas de Marejada solo disponibles en áreas costeras.",
-                                        modifier = Modifier.padding(12.dp),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color.Gray,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Text(
-                                        "Debug: Probes=$swellProbePointsAttempted, Hits=$swellProbeHits, Error=$lastSwellError",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.Red.copy(alpha = 0.5f),
                                         textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(bottom = 8.dp)
+                                        modifier = Modifier.padding(12.dp)
                                     )
                                 }
                             }
+                            else -> {}
                         }
-                    } else {
-                        Spacer(Modifier.height(16.dp))
-                        ProFeatureTeaser(
-                            title = "Métricas de Marejada & Oleaje",
-                            description = "Desbloquea altura de olas, periodo y dirección en tiempo real con PescaPR Pro.",
+                    }
+
+                    if (mostrar30DayPlannerSheet) {
+                        GoldenDayPlannerSheet(
+                            predictions = goldenTide30DayList,
+                            onDismiss = { mostrar30DayPlannerSheet = false }
+                        )
+                    }
+
+                    activePaywallFeature?.let { feature ->
+                        ProFeaturePaywallDialog(
+                            feature = feature,
+                            onDismiss = { activePaywallFeature = null },
                             onUpgradeClick = { mostrarPaywallDialog = true }
                         )
                     }
@@ -2782,7 +2958,10 @@ fun MapaPescapr(
                                                         descripcion = spotActual.descripcion,
                                                         latitud = spotActual.coordenada.latitude,
                                                         longitud = spotActual.coordenada.longitude,
-                                                        fotosUrls = currentFotos
+                                                        fotosUrls = currentFotos,
+                                                        userId = spotActual.userId,
+                                                        firestoreId = spotActual.firestoreId,
+                                                        approvedPhotos = spotActual.approvedPhotos
                                                     )
                                                     spotDao.updateSpot(entity)
                                                     
@@ -2978,17 +3157,6 @@ fun MapaPescapr(
                                 guardandoPunto = true
                                 try {
                                     val currentUid = userId.ifBlank { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
-                                    val entity = SpotEntity(
-                                        nombre = nombreNuevoPunto,
-                                        descripcion = descripcionNuevoPunto,
-                                        latitud = coords.latitude,
-                                        longitud = coords.longitude,
-                                        fotosUrls = emptyList(),
-                                        userId = currentUid
-                                    )
-                                    spotDao.insertSpot(entity)
-                                    
-                                    // Subir a la comunidad con atribución userId de forma estática
                                     val nuevoSpot = PuntoPesca(
                                         latitude = coords.latitude,
                                         longitude = coords.longitude,
@@ -2996,7 +3164,18 @@ fun MapaPescapr(
                                         descripcion = descripcionNuevoPunto,
                                         userId = currentUid
                                     )
-                                    viewModel.shareSpotToCommunity(nuevoSpot)
+                                    val syncedFirestoreId = viewModel.shareSpotToCommunity(nuevoSpot) ?: ""
+                                    val entity = SpotEntity(
+                                        nombre = nombreNuevoPunto,
+                                        descripcion = descripcionNuevoPunto,
+                                        latitud = coords.latitude,
+                                        longitud = coords.longitude,
+                                        fotosUrls = emptyList(),
+                                        userId = currentUid,
+                                        firestoreId = syncedFirestoreId,
+                                        approvedPhotos = emptyList()
+                                    )
+                                    spotDao.insertSpot(entity)
 
                                     mostrarDialogoNuevoPunto = false
                                     Toast.makeText(context, "Spot guardado localmente", Toast.LENGTH_SHORT).show()
@@ -3235,6 +3414,7 @@ fun MapaPescapr(
         }
     }
 }
+}
 
 @Composable
 fun ActionBtn(icon: ImageVector, label: String, color: Color = MaterialTheme.colorScheme.primary, onClick: () -> Unit) {
@@ -3333,6 +3513,149 @@ fun ProFeatureTeaser(title: String, description: String, onUpgradeClick: () -> U
                 Icon(Icons.Default.RocketLaunch, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Actualizar a Pro", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminPhotoModerationDialog(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val spotPhotoRepository = remember { SpotPhotoRepository() }
+    val pendingSubmissions = remember { mutableStateListOf<SpotPhotoSubmission>() }
+    var cargando by remember { mutableStateOf(true) }
+    val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: "admin"
+
+    LaunchedEffect(Unit) {
+        cargando = true
+        val list = spotPhotoRepository.getPendingSubmissionsForAdmin()
+        pendingSubmissions.clear()
+        pendingSubmissions.addAll(list)
+        cargando = false
+    }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.85f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Moderación de Fotos (${pendingSubmissions.size})",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, null)
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+
+                if (cargando) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (pendingSubmissions.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No hay fotos pendientes de revisión", color = Color.Gray)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(pendingSubmissions) { item ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.4f)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AsyncImage(
+                                        model = item.downloadUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Spot: ${item.spotId}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("Usuario: ${item.submittedByUserId.take(8)}...", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                    }
+                                    Column {
+                                        Button(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    val res = spotPhotoRepository.approveSubmissionTransaction(item.spotId, item, currentUid)
+                                                    res.fold(
+                                                        onSuccess = {
+                                                            Toast.makeText(context, "Foto aprobada exitosamente", Toast.LENGTH_SHORT).show()
+                                                            pendingSubmissions.remove(item)
+                                                        },
+                                                        onFailure = { err ->
+                                                            Toast.makeText(context, err.message ?: "Error al aprobar", Toast.LENGTH_LONG).show()
+                                                        }
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.height(32.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                        ) {
+                                            Text("Aprobar", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        OutlinedButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    val res = spotPhotoRepository.rejectSubmission(item, currentUid)
+                                                    res.fold(
+                                                        onSuccess = {
+                                                            Toast.makeText(context, "Foto rechazada", Toast.LENGTH_SHORT).show()
+                                                            pendingSubmissions.remove(item)
+                                                        },
+                                                        onFailure = { err ->
+                                                            Toast.makeText(context, err.message ?: "Error al rechazar", Toast.LENGTH_LONG).show()
+                                                        }
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.height(32.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                        ) {
+                                            Text("Rechazar", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

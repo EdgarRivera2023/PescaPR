@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.*
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.bradmir.pescapr.data.ApprovedSpotPhoto
 import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -19,7 +20,9 @@ data class SpotEntity(
     val latitud: Double,
     val longitud: Double,
     val fotosUrls: List<String> = emptyList(),
-    val userId: String = ""
+    val userId: String = "",
+    val firestoreId: String = "",
+    val approvedPhotos: List<ApprovedSpotPhoto> = emptyList()
 )
 
 @Entity(tableName = "records")
@@ -51,7 +54,24 @@ class Converters {
     @TypeConverter
     fun toStringList(value: String): List<String> {
         val listType = object : TypeToken<List<String>>() {}.type
-        return gson.fromJson(value, listType)
+        return try {
+            gson.fromJson(value, listType) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    @TypeConverter
+    fun fromApprovedPhotoList(value: List<ApprovedSpotPhoto>): String = gson.toJson(value)
+
+    @TypeConverter
+    fun toApprovedPhotoList(value: String): List<ApprovedSpotPhoto> {
+        val listType = object : TypeToken<List<ApprovedSpotPhoto>>() {}.type
+        return try {
+            gson.fromJson(value, listType) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 }
 
@@ -95,7 +115,7 @@ interface RecordDao {
 
 // --- DATABASE ---
 
-@Database(entities = [SpotEntity::class, RecordEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SpotEntity::class, RecordEntity::class], version = 4, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun spotDao(): SpotDao
@@ -108,6 +128,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE spots ADD COLUMN firestoreId TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE spots ADD COLUMN approvedPhotos TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -117,7 +149,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "pescapr_local_db"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance

@@ -9,7 +9,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bradmir.pescapr.data.PuntoPesca
 import com.bradmir.pescapr.data.SpotRepository
-import com.bradmir.pescapr.data.SubscriptionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,34 +29,7 @@ class MapViewModel(
     private val _isOffline = MutableStateFlow(false)
     val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
 
-    private val _showCoastalMorphology = MutableStateFlow(true)
-    val showCoastalMorphology: StateFlow<Boolean> = _showCoastalMorphology.asStateFlow()
 
-    private val _isMorphologyLayerEnabled = MutableStateFlow(false)
-    val isMorphologyLayerEnabled: StateFlow<Boolean> = _isMorphologyLayerEnabled.asStateFlow()
-
-    fun toggleCoastalMorphology() {
-        _showCoastalMorphology.value = !_showCoastalMorphology.value
-        _isMorphologyLayerEnabled.value = _showCoastalMorphology.value
-    }
-
-    fun toggleMorphologyLayer(isPro: Boolean): Boolean {
-        if (isPro) {
-            val newState = !_isMorphologyLayerEnabled.value
-            _isMorphologyLayerEnabled.value = newState
-            _showCoastalMorphology.value = newState
-            return true
-        } else {
-            _isMorphologyLayerEnabled.value = false
-            _showCoastalMorphology.value = false
-            return false
-        }
-    }
-
-    fun toggleMorphologyLayer(subscriptionManager: SubscriptionManager?): Boolean {
-        val isPro = subscriptionManager?.isPro == true
-        return toggleMorphologyLayer(isPro)
-    }
 
     init {
         context?.let { observeNetworkConnectivity(it.applicationContext) }
@@ -109,9 +81,7 @@ class MapViewModel(
         }
     }
 
-    fun shareSpotToCommunity(spot: PuntoPesca) {
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.shareSpotToCommunity(spot)
-        }
+    suspend fun shareSpotToCommunity(spot: PuntoPesca): String? {
+        return repository.shareSpotToCommunity(spot)
     }
 }

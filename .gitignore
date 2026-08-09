@@ -16,3 +16,4 @@ local.properties
 # Firebase configuration
 google-services.json
 ai.context
+.repomixignore

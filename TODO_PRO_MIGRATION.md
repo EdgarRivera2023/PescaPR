@@ -38,12 +38,18 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 
 ## Version 2.3
 ## Module 5: Coastal Morphology Map Layers & Offline Mode
-- v2.3.0 [x] Create and apply custom JSON Map Style for coastal structures.
-- v2.3.1 [x] Implement OfficialGuideRepository as a lightweight local data layer to parse and serve the "Oficial guide" directly from the device.
-- v2.3.2 [x] Design the UI screen to display the Official Guide data, strictly observing state hoisted from the ViewModel.
-- v2.3.3 [x] Implement dynamic UrlTileProvider mapping for Pro Catastro tiles and default satellite fallback for Free tier.
-- v2.3.4 [x] Remove redundant UI toggle buttons; tie layer visibility and map type exclusively to the isPro entitlement state.
-- v2.3.5 [x] Add "Offline Mode" status indicator to the UI.
+- v2.3.0 [x] Establish a GeoJSON schema and manually digitize visual data from Catastro/JP
+  into map polygons and polylines (e.g., reefs, drop-offs).
+- v2.3.1 [ ] Curate the dataset with specialized metadata (e.g., Target: Mutton Snapper,
+  Gear: 45 lb braided main line, Bottom: Rock/Sand).
+- v2.3.2 [ ] Secure all mapping API keys within the local.properties file and integrate the
+  Maps SDK Utility Library for GeoJSON parsing.
+- v2.3.3 [ ] Implement GeoJsonLayer to render the proprietary structure files locally from
+  the assets/ folder over the base satellite map for Pro users.
+- v2.3.4 [ ] Implement OnFeatureClickListener to trigger a BottomSheet displaying structure
+  metadata, and sync structural exposure checks directly with the tide manometer UI.
+- v2.3.5 [ ] Configure a remote fetch mechanism (e.g., Firebase Cloud Storage) for GeoJSON
+  files to enable over-the-air structure updates without requiring Play Store app releases.
 
 ## Version 2.4
 ## Module 6: Bilingual Localization (English & Spanish)
