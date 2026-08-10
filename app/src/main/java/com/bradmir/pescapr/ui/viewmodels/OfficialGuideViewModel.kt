@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bradmir.pescapr.FichaPez
 import com.bradmir.pescapr.data.OfficialGuideRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,13 +15,10 @@ class OfficialGuideViewModel(private val repository: OfficialGuideRepository) : 
     val fichas: StateFlow<List<FichaPez>> = _fichas.asStateFlow()
 
     init {
-        loadGuide()
-    }
-
-    fun loadGuide() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val list = repository.getOfficialGuide()
-            _fichas.value = list
+        viewModelScope.launch {
+            repository.observeOfficialGuide().collect { guide ->
+                _fichas.value = guide
+            }
         }
     }
 }

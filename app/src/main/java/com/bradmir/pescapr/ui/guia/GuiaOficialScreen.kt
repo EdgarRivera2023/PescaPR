@@ -60,6 +60,7 @@ import com.bradmir.pescapr.data.SpotPhotoRepository
 import com.bradmir.pescapr.data.SpotPhotoSubmission
 import com.bradmir.pescapr.ui.viewmodels.OfficialGuideViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
@@ -398,12 +399,14 @@ fun PantallaGuiaOficialTab() {
 
                             // 2. Guardar en Firestore con un timeout generoso
                             withTimeout(25000) {
-                                val docRef = if (fichaParaEditar == null) {
-                                    db.collection("fichas_peces").document()
+                                if (fichaParaEditar == null) {
+                                    db.collection("fichas_peces").document().set(data).await()
                                 } else {
-                                    db.collection("fichas_peces").document(fichaParaEditar!!.id)
+                                    db.collection("fichas_peces")
+                                        .document(fichaParaEditar!!.id)
+                                        .set(data, SetOptions.merge())
+                                        .await()
                                 }
-                                docRef.set(data).await()
                             }
 
                             // 3. Éxito: Cerrar diálogo
