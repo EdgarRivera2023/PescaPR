@@ -45,11 +45,11 @@ import com.bradmir.pescapr.R
 import com.bradmir.pescapr.RecordEntity
 import com.bradmir.pescapr.data.model.RecordPesca
 import com.bradmir.pescapr.SpotEntity
-import com.bradmir.pescapr.NoaaTideService
 import com.bradmir.pescapr.RelojMareasCircular
-import com.bradmir.pescapr.WeatherService
-import com.bradmir.pescapr.calculateTideFactor
-import com.bradmir.pescapr.findNearestTideStation
+import com.bradmir.pescapr.network.NoaaTideService
+import com.bradmir.pescapr.network.WeatherService
+import com.bradmir.pescapr.network.calculateTideFactor
+import com.bradmir.pescapr.network.findNearestTideStation
 import com.bradmir.pescapr.saveImageToInternalStorage
 import com.bradmir.pescapr.data.CatchRepository
 import com.bradmir.pescapr.data.ProSwellMetrics
