@@ -25,6 +25,9 @@ data class SpotEntity(
     val approvedPhotos: List<ApprovedSpotPhoto> = emptyList()
 )
 
+internal fun SpotEntity.withLocalIdentityFrom(existing: SpotEntity): SpotEntity =
+    copy(id = existing.id)
+
 @Entity(tableName = "records")
 data class RecordEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -93,6 +96,22 @@ interface SpotDao {
 
     @Query("SELECT * FROM spots WHERE id = :id")
     suspend fun getSpotById(id: Int): SpotEntity?
+
+    @Query("SELECT * FROM spots WHERE firestoreId = :firestoreId ORDER BY id LIMIT 1")
+    suspend fun getSpotByFirestoreId(firestoreId: String): SpotEntity?
+
+    @Transaction
+    suspend fun upsertFirestoreSpot(spot: SpotEntity): Long {
+        if (spot.firestoreId.isBlank()) return insertSpot(spot)
+
+        val existing = getSpotByFirestoreId(spot.firestoreId)
+        return if (existing == null) {
+            insertSpot(spot)
+        } else {
+            updateSpot(spot.withLocalIdentityFrom(existing))
+            existing.id.toLong()
+        }
+    }
 }
 
 @Dao
@@ -115,7 +134,7 @@ interface RecordDao {
 
 // --- DATABASE ---
 
-@Database(entities = [SpotEntity::class, RecordEntity::class], version = 4, exportSchema = false)
+@Database(entities = [SpotEntity::class, RecordEntity::class], version = 5, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun spotDao(): SpotDao
@@ -140,6 +159,48 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Keep the oldest local row as the stable identity for each Firestore spot.
+                // Repoint captures before removing only the redundant spot rows.
+                db.execSQL(
+                    """
+                    UPDATE records
+                    SET spotId = (
+                        SELECT MIN(canonical.id)
+                        FROM spots AS canonical
+                        WHERE canonical.firestoreId = (
+                            SELECT duplicate.firestoreId
+                            FROM spots AS duplicate
+                            WHERE duplicate.id = records.spotId
+                        )
+                    )
+                    WHERE spotId IN (
+                        SELECT duplicate.id
+                        FROM spots AS duplicate
+                        WHERE TRIM(duplicate.firestoreId) <> ''
+                          AND duplicate.id <> (
+                              SELECT MIN(canonical.id)
+                              FROM spots AS canonical
+                              WHERE canonical.firestoreId = duplicate.firestoreId
+                          )
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    DELETE FROM spots
+                    WHERE TRIM(firestoreId) <> ''
+                      AND id <> (
+                          SELECT MIN(canonical.id)
+                          FROM spots AS canonical
+                          WHERE canonical.firestoreId = spots.firestoreId
+                      )
+                    """.trimIndent()
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -149,7 +210,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "pescapr_local_db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
                 INSTANCE = instance
                 instance

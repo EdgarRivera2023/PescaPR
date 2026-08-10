@@ -181,7 +181,7 @@ val NOAA_STATIONS_PR = listOf(
     TideStation("9759110", 17.971, -67.045, "Magueyes Island"),
     TideStation("9752235", 18.301, -65.302, "Culebra"),
     TideStation("9752695", 18.093, -65.470, "Vieques"),
-    TideStation("9754980", 17.970, -66.617, "Ponce"),
+    TideStation("9757487", 17.96960068, -66.61990356, "Ponce"),
     TideStation("9759394", 18.220, -67.158, "Mayaguez"),
     TideStation("9757811", 18.480, -66.701, "Arecibo")
 )

@@ -13,6 +13,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +50,7 @@ import com.bradmir.pescapr.RelojMareasCircular
 import com.bradmir.pescapr.WeatherService
 import com.bradmir.pescapr.calculateTideFactor
 import com.bradmir.pescapr.findNearestTideStation
+import com.bradmir.pescapr.saveImageToInternalStorage
 import com.bradmir.pescapr.data.CatchRepository
 import com.bradmir.pescapr.data.ProSwellMetrics
 import com.bradmir.pescapr.data.PuntoPesca
@@ -64,6 +67,7 @@ import com.bradmir.pescapr.ui.components.ProFeaturePaywallDialog
 import com.bradmir.pescapr.ui.components.ProFeatureType
 import com.bradmir.pescapr.ui.components.ProSwellCard
 import com.bradmir.pescapr.ui.components.WaterTempCard
+import com.bradmir.pescapr.ui.identificador.ejecutarMatchingConFichas
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
@@ -228,6 +232,9 @@ fun MapaPescapr(
     var longitudCaptura by remember { mutableStateOf("") }
     var fichaSeleccionada by remember { mutableStateOf<FichaPez?>(null) }
     val bitmapsCaptura = remember { mutableStateListOf<Bitmap>() }
+    var guardandoCaptura by remember { mutableStateOf(false) }
+    var analizandoIA by remember { mutableStateOf(false) }
+    var expandedGuia by remember { mutableStateOf(false) }
 
     // Clima & Mareas
     var datosClima by remember { mutableStateOf<WeatherResponse?>(null) }
@@ -524,7 +531,7 @@ fun MapaPescapr(
                 }
 
                 listaRemota.forEach { spot ->
-                    spotDao.insertSpot(
+                    spotDao.upsertFirestoreSpot(
                         SpotEntity(
                             nombre = spot.nombre,
                             descripcion = spot.descripcion,
@@ -1259,6 +1266,204 @@ fun MapaPescapr(
                 }
             }
         }
+    }
+
+    if (mostrarDialogoCaptura) {
+        val multiPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+            uris.forEach { uri ->
+                val stream = context.contentResolver.openInputStream(uri)
+                val bmp = BitmapFactory.decodeStream(stream)
+                bmp?.let { bitmapsCaptura.add(it) }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { if (!guardandoCaptura) mostrarDialogoCaptura = false },
+            title = { Text(if (recordParaEditarCaptura == null) "Registrar Captura" else "Editar Captura") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Ubicación: ${spotSeleccionado?.nombre}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+
+                    Button(
+                        onClick = { multiPickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                        enabled = !analizandoIA && !guardandoCaptura
+                    ) {
+                        Icon(Icons.Default.AddAPhoto, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Añadir Fotos")
+                    }
+
+                    if (bitmapsCaptura.isNotEmpty()) {
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            bitmapsCaptura.forEachIndexed { index, bmp ->
+                                Box {
+                                    Image(bitmap = bmp.asImageBitmap(), null, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                                    IconButton(
+                                        onClick = { bitmapsCaptura.removeAt(index) },
+                                        modifier = Modifier.size(20.dp).align(Alignment.TopEnd).background(Color.White.copy(0.7f), CircleShape),
+                                        enabled = !analizandoIA && !guardandoCaptura
+                                    ) {
+                                        Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp), tint = Color.Red)
+                                    }
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    analizandoIA = true
+                                    val result = ejecutarMatchingConFichas(db, bitmapsCaptura.first())
+                                    if (!result.esError) {
+                                        val match = fichasGuia.find { it.nombreComun == result.nombreComun }
+                                        if (match != null) {
+                                            fichaSeleccionada = match
+                                            nombrePezCaptura = match.nombreComun
+                                        } else {
+                                            nombrePezCaptura = result.nombreComun
+                                            fichaSeleccionada = null
+                                        }
+                                        Toast.makeText(context, "Pez identificado: ${result.nombreComun}", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Error IA: ${result.nombreComun}", Toast.LENGTH_SHORT).show()
+                                    }
+                                    analizandoIA = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !analizandoIA && !guardandoCaptura,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        ) {
+                            if (analizandoIA) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onTertiary, strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Psychology, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Identificar con IA")
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        // Selección de Pez de la Guía
+                        Box {
+                            OutlinedTextField(
+                                value = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura,
+                                onValueChange = { nombrePezCaptura = it; fichaSeleccionada = null },
+                                label = { Text("Especie (Guía Oficial o Manual)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !analizandoIA && !guardandoCaptura,
+                                trailingIcon = {
+                                    IconButton(onClick = { expandedGuia = true }, enabled = !analizandoIA && !guardandoCaptura) {
+                                        Icon(Icons.Default.ArrowDropDown, null)
+                                    }
+                                }
+                            )
+                            DropdownMenu(expanded = expandedGuia, onDismissRequest = { expandedGuia = false }, modifier = Modifier.fillMaxWidth(0.8f)) {
+                                fichasGuia.forEach { ficha ->
+                                    DropdownMenuItem(
+                                        text = { Column { Text(ficha.nombreComun, fontWeight = FontWeight.Bold); Text(ficha.nombreCientifico, style = MaterialTheme.typography.labelSmall) } },
+                                        onClick = { fichaSeleccionada = ficha; expandedGuia = false }
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = pesoCaptura,
+                                onValueChange = { pesoCaptura = it },
+                                label = { Text("Peso (lb/oz)") },
+                                modifier = Modifier.weight(1f),
+                                enabled = !analizandoIA && !guardandoCaptura
+                            )
+                            OutlinedTextField(
+                                value = longitudCaptura,
+                                onValueChange = { longitudCaptura = it },
+                                label = { Text("Longitud (pulg)") },
+                                modifier = Modifier.weight(1f),
+                                enabled = !analizandoIA && !guardandoCaptura
+                            )
+                        }
+                    }
+
+                    if (guardandoCaptura) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        Text("Guardando y subiendo fotos...", modifier = Modifier.align(Alignment.CenterHorizontally), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalNombre = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura
+                        if (finalNombre.isNotBlank() && spotSeleccionado != null) {
+                            coroutineScope.launch {
+                                guardandoCaptura = true
+                                try {
+                                    val uploadedUrls = mutableListOf<String>()
+                                    bitmapsCaptura.forEach { bmp ->
+                                        val localPath = saveImageToInternalStorage(context, bmp, "capturas")
+                                        if (localPath != null) uploadedUrls.add(localPath)
+                                    }
+
+                                    val clima = datosClima
+                                    val pressureInHg = clima?.main?.pressure?.let { String.format(Locale.US, "%.2f", it.toDouble() * 0.02953) } ?: "N/A"
+
+                                    val spotIdInt = spotSeleccionado?.id?.toIntOrNull() ?: 0
+                                    val recordIdInt = recordParaEditarCaptura?.id?.toIntOrNull() ?: 0
+
+                                    val entity = RecordEntity(
+                                        id = recordIdInt,
+                                        nombrePez = finalNombre,
+                                        fishId = fichaSeleccionada?.id,
+                                        spotId = spotIdInt,
+                                        peso = pesoCaptura,
+                                        longitud = longitudCaptura,
+                                        fecha = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(java.util.Date()),
+                                        fotosUrls = if (recordParaEditarCaptura != null) recordParaEditarCaptura!!.fotosUrls + uploadedUrls else uploadedUrls,
+                                        climaTemp = (clima?.main?.temp?.toInt()?.toString()?.plus("°F") ?: "N/A"),
+                                        climaWind = (clima?.wind?.speed?.toInt()?.toString()?.plus(" mph") ?: "N/A"),
+                                        climaPressure = "$pressureInHg inHg",
+                                        climaTide = tideDescription,
+                                        lugar = spotSeleccionado?.nombre ?: "Ubicación desconocida"
+                                    )
+
+                                    if (recordParaEditarCaptura == null) {
+                                        repository.saveCatch(entity, isPro)
+                                    } else {
+                                        recordDao.updateRecord(entity)
+                                    }
+
+                                    bitmapsCaptura.clear()
+                                    nombrePezCaptura = ""; pesoCaptura = ""; longitudCaptura = ""; fichaSeleccionada = null
+                                    recordParaEditarCaptura = null
+                                    mostrarDialogoCaptura = false
+                                    Toast.makeText(context, "Captura registrada localmente", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    guardandoCaptura = false
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, "Indica el nombre del pez", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = !guardandoCaptura && !analizandoIA && (if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura).isNotBlank()
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoCaptura = false }, enabled = !guardandoCaptura) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     selectedMorphologyFeature?.let { feature ->
