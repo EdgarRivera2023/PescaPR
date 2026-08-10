@@ -540,6 +540,14 @@ fun MainTabsScreen(database: AppDatabase) {
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
+                    // v2.3.4
+                    VersionNote(
+                        version = "v2.3.4 - 8/10/2026",
+                        changes = listOf(
+                            "Morfología Costera Interactiva: Toca una estructura para consultar sus detalles sin bloquear la interacción con los spots de pesca."
+                        )
+                    )
+
                     // v2.1.5
                     VersionNote(
                         version = "v2.1.5 - 7/26/2026",

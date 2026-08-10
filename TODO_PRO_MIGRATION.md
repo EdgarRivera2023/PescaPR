@@ -51,7 +51,7 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 - v2.3.3 [x] Implement CoastalMorphologyLayer to render proprietary local GeoJSON from
   res/raw as non-clickable Maps Compose Polygon and Polyline overlays over the satellite
   map for Pro users.
-- v2.3.4 [ ] Implement non-intercepting interaction design for structure metadata, ensuring
+- v2.3.4 [x] Implement non-intercepting interaction design for structure metadata, ensuring
   GeoJSON feature taps do not block interaction with fishing spot markers.
 - v2.3.5 [ ] Configure a remote fetch mechanism (e.g., Firebase Cloud Storage) for GeoJSON
   files to enable over-the-air structure updates without requiring Play Store app releases.
@@ -110,6 +110,6 @@ The morphology dataset is a continuously evolving PescaPR data asset and is not 
 - ASO.4 [ ] Add engaging, descriptive captions to all Play Store images.
 
 ---
-**Current Status:** Module 5 partially complete (v2.3.0, v2.3.1, v2.3.3 done).
+**Current Status:** Module 5 partially complete (v2.3.0 through v2.3.4 done).
 
  

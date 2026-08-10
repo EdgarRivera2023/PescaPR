@@ -169,6 +169,13 @@ fun MapaPescapr(
     var verPinesComunidad by remember { mutableStateOf(false) }
     var spotSeleccionado by remember { mutableStateOf<PuntoPesca?>(null) }
     var mostrarSheet by remember { mutableStateOf(false) }
+    val morphologyEnabled = isPro && showMorphologyLayer
+    val morphologyData = rememberCoastalMorphologyData(morphologyEnabled)
+    var selectedMorphologyFeature by remember { mutableStateOf<MorphologyFeatureMetadata?>(null) }
+
+    LaunchedEffect(morphologyEnabled) {
+        if (!morphologyEnabled) selectedMorphologyFeature = null
+    }
 
     var customPinIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
     LaunchedEffect(Unit) {
@@ -607,9 +614,20 @@ fun MapaPescapr(
             nombreNuevoPunto = ""
             descripcionNuevoPunto = ""
             mostrarDialogoNuevoPunto = true
+        },
+        onMapClick = { latLng ->
+            if (morphologyEnabled) {
+                selectedMorphologyFeature = findMorphologyFeatureAt(latLng, morphologyData)
+                if (selectedMorphologyFeature != null) {
+                    mostrarSheet = false
+                    spotSeleccionado = null
+                }
+            } else {
+                selectedMorphologyFeature = null
+            }
         }
     ) {
-        CoastalMorphologyLayer(enabled = isPro && showMorphologyLayer)
+        CoastalMorphologyLayerContent(enabled = morphologyEnabled, data = morphologyData)
 
     val listaAMostrar = if (verPinesComunidad) pinesComunidad else misPuntos
     listaAMostrar.forEach { spot ->
@@ -620,9 +638,11 @@ fun MapaPescapr(
           title = spot.nombre,
           snippet = spot.descripcion.ifBlank { "Toca para ver detalles" },
           onClick = {
+            selectedMorphologyFeature = null
             false
           },
           onInfoWindowClick = {
+            selectedMorphologyFeature = null
             spotSeleccionado = spot
             mostrarSheet = true
           },
@@ -1238,6 +1258,14 @@ fun MapaPescapr(
         }
     }
 
+    selectedMorphologyFeature?.let { feature ->
+        ModalBottomSheet(
+            onDismissRequest = { selectedMorphologyFeature = null }
+        ) {
+            MorphologyMetadataSheet(feature)
+        }
+    }
+
     if (fotoAmpliadaUrl != null) {
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { fotoAmpliadaUrl = null }
@@ -1260,6 +1288,72 @@ fun MapaPescapr(
         }
     }
 }
+
+@Composable
+private fun MorphologyMetadataSheet(feature: MorphologyFeatureMetadata) {
+    val rows = buildList {
+        feature.structureType?.let { add("Tipo de estructura" to morphologyLabel(it)) }
+        feature.bottomType?.let { add("Tipo de fondo" to morphologyLabel(it)) }
+        feature.targetSpecies?.let { add("Especies objetivo" to it) }
+        feature.bestTide?.let { add("Mejor marea" to morphologyLabel(it)) }
+        (feature.fishingStrategyEs ?: feature.fishingStrategyEn)?.let { add("Estrategia" to it) }
+        (feature.hazardsEs ?: feature.hazardsEn)?.let { add("Peligros" to it) }
+        feature.notes?.let { add("Notas" to it) }
+        feature.geometrySource?.let { add("Fuente de geometría" to morphologyLabel(it)) }
+        feature.fishingSource?.let { add("Fuente de pesca" to morphologyLabel(it)) }
+        feature.geometryConfidence?.let { add("Confianza de geometría" to morphologyLabel(it)) }
+        feature.fishingConfidence?.let { add("Confianza de pesca" to morphologyLabel(it)) }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(bottom = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = feature.displayName,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        feature.nameEn
+            ?.takeIf { it != feature.displayName }
+            ?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+        if (rows.isEmpty()) {
+            Text(
+                text = "No hay detalles adicionales disponibles.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            rows.forEach { (label, value) ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(text = value, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+private fun morphologyLabel(value: String): String = value
+    .lowercase(Locale.ROOT)
+    .replace('_', ' ')
+    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
 
 @Composable
 fun WeatherInfoItem(
@@ -1345,22 +1439,6 @@ fun ProSwellCardContainer(
     }
 }
 
-private data class MorphologyPolygonData(
-    val id: String,
-    val outerBoundary: List<LatLng>,
-    val holes: List<List<LatLng>> = emptyList()
-)
-
-private data class MorphologyLineData(
-    val id: String,
-    val points: List<LatLng>
-)
-
-private data class MorphologyParsedData(
-    val polygons: List<MorphologyPolygonData> = emptyList(),
-    val lines: List<MorphologyLineData> = emptyList()
-)
-
 private fun parseGeoJsonCoordinates(jsonArray: org.json.JSONArray): List<LatLng> {
     val list = ArrayList<LatLng>(jsonArray.length())
     for (i in 0 until jsonArray.length()) {
@@ -1387,7 +1465,9 @@ private fun parseCoastalMorphologyGeoJson(context: Context): MorphologyParsedDat
                 val geometry = feature.optJSONObject("geometry") ?: continue
                 val type = geometry.optString("type")
                 val coords = geometry.optJSONArray("coordinates") ?: continue
-                val fid = feature.optJSONObject("properties")?.optString("fid") ?: i.toString()
+                val properties = feature.optJSONObject("properties") ?: org.json.JSONObject()
+                val fid = properties.optionalText("fid") ?: i.toString()
+                val metadata = properties.toMorphologyMetadata(fid)
 
                 when (type) {
                     "Polygon" -> {
@@ -1397,7 +1477,7 @@ private fun parseCoastalMorphologyGeoJson(context: Context): MorphologyParsedDat
                             for (h in 1 until coords.length()) {
                                 holes.add(parseGeoJsonCoordinates(coords.getJSONArray(h)))
                             }
-                            polygons.add(MorphologyPolygonData("$fid-$i", outer, holes))
+                            polygons.add(MorphologyPolygonData("$fid-$i", outer, holes, metadata))
                         }
                     }
                     "MultiPolygon" -> {
@@ -1409,18 +1489,18 @@ private fun parseCoastalMorphologyGeoJson(context: Context): MorphologyParsedDat
                                 for (h in 1 until polyCoords.length()) {
                                     holes.add(parseGeoJsonCoordinates(polyCoords.getJSONArray(h)))
                                 }
-                                polygons.add(MorphologyPolygonData("$fid-$i-$p", outer, holes))
+                                polygons.add(MorphologyPolygonData("$fid-$i-$p", outer, holes, metadata))
                             }
                         }
                     }
                     "LineString" -> {
                         val pts = parseGeoJsonCoordinates(coords)
-                        lines.add(MorphologyLineData("$fid-$i", pts))
+                        lines.add(MorphologyLineData("$fid-$i", pts, metadata))
                     }
                     "MultiLineString" -> {
                         for (l in 0 until coords.length()) {
                             val pts = parseGeoJsonCoordinates(coords.getJSONArray(l))
-                            lines.add(MorphologyLineData("$fid-$i-$l", pts))
+                            lines.add(MorphologyLineData("$fid-$i-$l", pts, metadata))
                         }
                     }
                 }
@@ -1433,24 +1513,72 @@ private fun parseCoastalMorphologyGeoJson(context: Context): MorphologyParsedDat
     return MorphologyParsedData(polygons, lines)
 }
 
+private fun org.json.JSONObject.optionalText(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return normalizeMorphologyValue(optString(key))
+}
+
+private fun org.json.JSONObject.optionalTextList(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    val array = optJSONArray(key)
+    if (array != null) {
+        return (0 until array.length())
+            .mapNotNull { index -> array.optString(index).trim().takeIf(String::isNotEmpty) }
+            .joinToString(", ")
+            .takeIf(String::isNotEmpty)
+    }
+    return optionalText(key)
+}
+
+private fun org.json.JSONObject.toMorphologyMetadata(fallbackId: String) =
+    MorphologyFeatureMetadata(
+        id = optionalText("id") ?: fallbackId,
+        nameEs = optionalText("name_es"),
+        nameEn = optionalText("name_en"),
+        structureType = optionalText("type"),
+        bottomType = optionalText("bottom_type"),
+        targetSpecies = optionalTextList("target_species"),
+        fishingStrategyEs = optionalText("fishing_strategy_es"),
+        fishingStrategyEn = optionalText("fishing_strategy_en"),
+        notes = optionalText("notes"),
+        bestTide = optionalText("best_tide"),
+        hazardsEs = optionalText("hazards_es"),
+        hazardsEn = optionalText("hazards_en"),
+        geometrySource = optionalText("geometry_source"),
+        fishingSource = optionalText("fishing_source"),
+        geometryConfidence = optionalText("confidence_geometry"),
+        fishingConfidence = optionalText("confidence_fishing")
+    )
+
 /**
  * Composable for rendering local GeoJSON coastal morphology layer natively using Maps Compose.
  */
 @Composable
-fun CoastalMorphologyLayer(enabled: Boolean) {
-    if (!enabled) return
-
+private fun rememberCoastalMorphologyData(enabled: Boolean): MorphologyParsedData {
     val context = LocalContext.current
     var data by remember { mutableStateOf(MorphologyParsedData()) }
 
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val parsed = parseCoastalMorphologyGeoJson(context)
-            withContext(Dispatchers.Main) {
-                data = parsed
-            }
+    LaunchedEffect(enabled) {
+        if (!enabled) {
+            data = MorphologyParsedData()
+            return@LaunchedEffect
+        }
+        data = withContext(Dispatchers.IO) {
+            parseCoastalMorphologyGeoJson(context.applicationContext)
         }
     }
+    return data
+}
+
+@Composable
+fun CoastalMorphologyLayer(enabled: Boolean) {
+    val data = rememberCoastalMorphologyData(enabled)
+    CoastalMorphologyLayerContent(enabled, data)
+}
+
+@Composable
+private fun CoastalMorphologyLayerContent(enabled: Boolean, data: MorphologyParsedData) {
+    if (!enabled) return
 
     data.polygons.forEach { poly ->
         key(poly.id) {
