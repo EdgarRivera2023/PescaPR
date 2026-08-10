@@ -43,7 +43,7 @@ import com.bradmir.pescapr.BuildConfig
 import com.bradmir.pescapr.data.model.FichaPez
 import com.bradmir.pescapr.R
 import com.bradmir.pescapr.RecordEntity
-import com.bradmir.pescapr.RecordPesca
+import com.bradmir.pescapr.data.model.RecordPesca
 import com.bradmir.pescapr.SpotEntity
 import com.bradmir.pescapr.NoaaTideService
 import com.bradmir.pescapr.RelojMareasCircular

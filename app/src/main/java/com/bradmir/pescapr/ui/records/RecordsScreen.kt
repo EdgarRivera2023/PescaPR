@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.bradmir.pescapr.AppDatabase
 import com.bradmir.pescapr.BuildConfig
 import com.bradmir.pescapr.RecordEntity
-import com.bradmir.pescapr.RecordPesca
+import com.bradmir.pescapr.data.model.RecordPesca
 import com.bradmir.pescapr.data.CatchRepository
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.firebase.auth.FirebaseAuth
