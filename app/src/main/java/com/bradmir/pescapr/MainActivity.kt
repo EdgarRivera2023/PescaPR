@@ -1,9 +1,7 @@
 package com.bradmir.pescapr
 
-import android.content.Context
 import com.bradmir.pescapr.data.*
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
@@ -73,9 +71,6 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.Path
 import com.google.gson.annotations.SerializedName
-import java.io.File
-import java.io.FileOutputStream
-import java.util.UUID
 
 // --- 1. MODELOS DE DATOS ---
 
@@ -94,22 +89,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-fun saveImageToInternalStorage(context: Context, bitmap: Bitmap, folder: String): String? {
-    return try {
-        val filename = "${UUID.randomUUID()}.jpg"
-        val directory = File(context.filesDir, folder)
-        if (!directory.exists()) directory.mkdirs()
-        val file = File(directory, filename)
-        FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
-        }
-        file.absolutePath
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainTabsScreen(database: AppDatabase) {
