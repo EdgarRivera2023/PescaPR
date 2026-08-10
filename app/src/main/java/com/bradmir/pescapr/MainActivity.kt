@@ -23,8 +23,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,12 +41,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
@@ -129,16 +125,6 @@ data class TidePrediction(
 )
 data class NoaaTideResponse(val predictions: List<TidePrediction>?)
 
-// --- SUNRISE SUNSET MODELS ---
-data class SunriseSunsetResponse(val days: List<DayData>?, val status: String)
-data class DayData(val date: String, val sunrise: String, val sunset: String)
-
-data class GoldenPeak(
-    val date: String,
-    val time: String,
-    val type: String // "Amanecer" or "Atardecer"
-)
-
 data class TideStation(val id: String, val lat: Double, val lon: Double, val name: String)
 
 val NOAA_STATIONS_PR = listOf(
@@ -179,16 +165,6 @@ interface NoaaTideService {
     ): NoaaTideResponse
 }
 
-interface SunriseSunsetService {
-    @GET("v2")
-    suspend fun getRange(
-        @Query("lat") lat: Double,
-        @Query("lng") lng: Double,
-        @Query("date_start") start: String,
-        @Query("date_end") end: String
-    ): SunriseSunsetResponse
-}
-
 // --- 2. ACTIVIDAD PRINCIPAL ---
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -204,7 +180,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 fun saveImageToInternalStorage(context: Context, bitmap: Bitmap, folder: String): String? {
     return try {
         val filename = "${UUID.randomUUID()}.jpg"
@@ -537,58 +512,6 @@ fun PantallaMapaTab(
 // --- TAB 3: GUÍA OFICIAL (User creates these) ---
 
 // --- ENGINE: MATCHING CON GEMINI ---
-suspend fun findGoldenPeaks(
-    tideService: NoaaTideService,
-    sunService: SunriseSunsetService,
-    lat: Double,
-    lon: Double,
-    stationId: String
-): List<GoldenPeak> = withContext(Dispatchers.IO) {
-    val peaks = mutableListOf<GoldenPeak>()
-    val cal = java.util.Calendar.getInstance()
-    val sdfNoaa = java.text.SimpleDateFormat("yyyyMMdd", Locale.US)
-    val sdfSun = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US)
-    val sdfTideInput = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
-    val sdfSunInput = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
-    val sdfOutput = java.text.SimpleDateFormat("h:mm a", Locale.US)
-    val sdfDateOutput = java.text.SimpleDateFormat("EEEE, d 'de' MMMM", Locale("es", "PR"))
-
-    val startStrNoaa = sdfNoaa.format(cal.time)
-    val startStrSun = sdfSun.format(cal.time)
-    
-    cal.add(java.util.Calendar.DAY_OF_YEAR, 30)
-    val endStrNoaa = sdfNoaa.format(cal.time)
-    val endStrSun = sdfSun.format(cal.time)
-
-    try {
-        val tideRes = tideService.getTidePredictions(beginDate = startStrNoaa, endDate = endStrNoaa, station = stationId)
-        val sunRes = sunService.getRange(lat = lat, lng = lon, start = startStrSun, end = endStrSun)
-
-        val highTides = tideRes.predictions?.filter { it.type == "H" } ?: emptyList()
-        val days = sunRes.days ?: emptyList()
-
-        highTides.forEach { tide ->
-            val tideDate = try { sdfTideInput.parse(tide.t) } catch(e: Exception) { null } ?: return@forEach
-            
-            // Buscar datos de sol para este día
-            val tideDayStr = sdfSun.format(tideDate)
-            val dayData = days.find { it.date == tideDayStr } ?: return@forEach
-            
-            val sunriseDate = try { sdfSunInput.parse(dayData.sunrise) } catch(e: Exception) { null }
-            val sunsetDate = try { sdfSunInput.parse(dayData.sunset) } catch(e: Exception) { null }
-            
-            if (sunriseDate != null && Math.abs(tideDate.time - sunriseDate.time) < 90 * 60 * 1000) {
-                peaks.add(GoldenPeak(sdfDateOutput.format(tideDate).replaceFirstChar { it.uppercase() }, sdfOutput.format(tideDate), "Amanecer"))
-            } else if (sunsetDate != null && Math.abs(tideDate.time - sunsetDate.time) < 90 * 60 * 1000) {
-                peaks.add(GoldenPeak(sdfDateOutput.format(tideDate).replaceFirstChar { it.uppercase() }, sdfOutput.format(tideDate), "Atardecer"))
-            }
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-    
-    return@withContext peaks
-}
 
 fun findNearestTideStation(lat: Double, lon: Double): TideStation {
     return NOAA_STATIONS_PR.minByOrNull { station ->
@@ -600,22 +523,6 @@ fun findNearestTideStation(lat: Double, lon: Double): TideStation {
         val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
         6371 * c // Distance in km
     } ?: NOAA_STATIONS_PR[0]
-}
-
-fun calculateCoastalScore(heightFt: Float, periodSec: Float): Int {
-    var score = 5 // Base score
-    
-    // Period is king for surf casting
-    if (periodSec > 10) score += 3
-    else if (periodSec > 7) score += 1
-    else score -= 2
-    
-    // Height management
-    if (heightFt in 2.0..5.0) score += 2 // Ideal height
-    else if (heightFt > 8.0) score -= 3 // Too rough
-    else if (heightFt < 1.0) score -= 1 // Too flat
-    
-    return score.coerceIn(1, 10)
 }
 
 fun calculateTideFactor(predictions: List<TidePrediction>): Triple<Float, String, String> {
@@ -722,93 +629,4 @@ fun RelojMareasCircular(valor: Float, nextTime: String = "") {
             drawCircle(Color.DarkGray, radius = 8f, center = center)
         }
     }
-}
-
-@Composable
-fun WeatherInfoItem(icon: ImageVector, value: String, label: String, tintOverride: Color? = null) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, modifier = Modifier.size(24.dp), tint = tintOverride ?: MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = tintOverride ?: Color.Unspecified)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-        }
-    }
-}
-
-
-
-@Composable
-fun DialogoPicosDeOro(peaks: List<GoldenPeak>, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AutoAwesome, null, tint = Color(0xFFFFD700))
-                Spacer(Modifier.width(8.dp))
-                Text("Picos de Oro (Próximos 30 días)")
-            }
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
-                Text(
-                    "Días donde la marea alta coincide con el amanecer o atardecer (+/- 90 min).",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                
-                if (peaks.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        Text("No se encontraron picos ideales en este periodo.", textAlign = TextAlign.Center)
-                    }
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(peaks) { peak ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.2f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(peak.date, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text(peak.time, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                                    }
-                                    
-                                    Surface(
-                                        color = if (peak.type == "Amanecer") Color(0xFFFFE082) else Color(0xFFFFCCBC),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(
-                                            peak.type, 
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    "Datos astronómicos por sunrise-sunset.org",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray,
-                    modifier = Modifier.align(Alignment.End)
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Entendido")
-            }
-        }
-    )
 }
