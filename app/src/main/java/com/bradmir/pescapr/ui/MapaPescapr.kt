@@ -176,6 +176,9 @@ fun MapaPescapr(
     LaunchedEffect(morphologyEnabled) {
         if (!morphologyEnabled) selectedMorphologyFeature = null
     }
+    LaunchedEffect(morphologyData) {
+        selectedMorphologyFeature = null
+    }
 
     var customPinIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
     LaunchedEffect(Unit) {
@@ -1439,135 +1442,21 @@ fun ProSwellCardContainer(
     }
 }
 
-private fun parseGeoJsonCoordinates(jsonArray: org.json.JSONArray): List<LatLng> {
-    val list = ArrayList<LatLng>(jsonArray.length())
-    for (i in 0 until jsonArray.length()) {
-        val pt = jsonArray.getJSONArray(i)
-        val lng = pt.getDouble(0)
-        val lat = pt.getDouble(1)
-        list.add(LatLng(lat, lng))
-    }
-    return list
-}
-
-private fun parseCoastalMorphologyGeoJson(context: Context): MorphologyParsedData {
-    val polygons = mutableListOf<MorphologyPolygonData>()
-    val lines = mutableListOf<MorphologyLineData>()
-
-    try {
-        context.resources.openRawResource(R.raw.coastal_morphology_geojson).use { inputStream ->
-            val jsonText = inputStream.bufferedReader().use { reader -> reader.readText() }
-            val root = org.json.JSONObject(jsonText)
-            val features = root.optJSONArray("features") ?: return MorphologyParsedData()
-
-            for (i in 0 until features.length()) {
-                val feature = features.getJSONObject(i)
-                val geometry = feature.optJSONObject("geometry") ?: continue
-                val type = geometry.optString("type")
-                val coords = geometry.optJSONArray("coordinates") ?: continue
-                val properties = feature.optJSONObject("properties") ?: org.json.JSONObject()
-                val fid = properties.optionalText("fid") ?: i.toString()
-                val metadata = properties.toMorphologyMetadata(fid)
-
-                when (type) {
-                    "Polygon" -> {
-                        if (coords.length() > 0) {
-                            val outer = parseGeoJsonCoordinates(coords.getJSONArray(0))
-                            val holes = mutableListOf<List<LatLng>>()
-                            for (h in 1 until coords.length()) {
-                                holes.add(parseGeoJsonCoordinates(coords.getJSONArray(h)))
-                            }
-                            polygons.add(MorphologyPolygonData("$fid-$i", outer, holes, metadata))
-                        }
-                    }
-                    "MultiPolygon" -> {
-                        for (p in 0 until coords.length()) {
-                            val polyCoords = coords.getJSONArray(p)
-                            if (polyCoords.length() > 0) {
-                                val outer = parseGeoJsonCoordinates(polyCoords.getJSONArray(0))
-                                val holes = mutableListOf<List<LatLng>>()
-                                for (h in 1 until polyCoords.length()) {
-                                    holes.add(parseGeoJsonCoordinates(polyCoords.getJSONArray(h)))
-                                }
-                                polygons.add(MorphologyPolygonData("$fid-$i-$p", outer, holes, metadata))
-                            }
-                        }
-                    }
-                    "LineString" -> {
-                        val pts = parseGeoJsonCoordinates(coords)
-                        lines.add(MorphologyLineData("$fid-$i", pts, metadata))
-                    }
-                    "MultiLineString" -> {
-                        for (l in 0 until coords.length()) {
-                            val pts = parseGeoJsonCoordinates(coords.getJSONArray(l))
-                            lines.add(MorphologyLineData("$fid-$i-$l", pts, metadata))
-                        }
-                    }
-                }
-            }
-        }
-    } catch (e: Exception) {
-        Log.e("CoastalMorphologyLayer", "Error parsing GeoJSON", e)
-    }
-
-    return MorphologyParsedData(polygons, lines)
-}
-
-private fun org.json.JSONObject.optionalText(key: String): String? {
-    if (!has(key) || isNull(key)) return null
-    return normalizeMorphologyValue(optString(key))
-}
-
-private fun org.json.JSONObject.optionalTextList(key: String): String? {
-    if (!has(key) || isNull(key)) return null
-    val array = optJSONArray(key)
-    if (array != null) {
-        return (0 until array.length())
-            .mapNotNull { index -> array.optString(index).trim().takeIf(String::isNotEmpty) }
-            .joinToString(", ")
-            .takeIf(String::isNotEmpty)
-    }
-    return optionalText(key)
-}
-
-private fun org.json.JSONObject.toMorphologyMetadata(fallbackId: String) =
-    MorphologyFeatureMetadata(
-        id = optionalText("id") ?: fallbackId,
-        nameEs = optionalText("name_es"),
-        nameEn = optionalText("name_en"),
-        structureType = optionalText("type"),
-        bottomType = optionalText("bottom_type"),
-        targetSpecies = optionalTextList("target_species"),
-        fishingStrategyEs = optionalText("fishing_strategy_es"),
-        fishingStrategyEn = optionalText("fishing_strategy_en"),
-        notes = optionalText("notes"),
-        bestTide = optionalText("best_tide"),
-        hazardsEs = optionalText("hazards_es"),
-        hazardsEn = optionalText("hazards_en"),
-        geometrySource = optionalText("geometry_source"),
-        fishingSource = optionalText("fishing_source"),
-        geometryConfidence = optionalText("confidence_geometry"),
-        fishingConfidence = optionalText("confidence_fishing")
-    )
-
 /**
- * Composable for rendering local GeoJSON coastal morphology layer natively using Maps Compose.
+ * Composable for rendering cached or bundled GeoJSON coastal morphology using Maps Compose.
  */
 @Composable
 private fun rememberCoastalMorphologyData(enabled: Boolean): MorphologyParsedData {
     val context = LocalContext.current
-    var data by remember { mutableStateOf(MorphologyParsedData()) }
-
-    LaunchedEffect(enabled) {
-        if (!enabled) {
-            data = MorphologyParsedData()
-            return@LaunchedEffect
-        }
-        data = withContext(Dispatchers.IO) {
-            parseCoastalMorphologyGeoJson(context.applicationContext)
-        }
+    val repository = remember(context.applicationContext) {
+        CoastalMorphologyRepository(context.applicationContext)
     }
-    return data
+    val repositoryState by repository.state.collectAsState()
+
+    LaunchedEffect(enabled, repository) {
+        if (enabled) repository.loadAndRefresh()
+    }
+    return if (enabled) repositoryState.data else MorphologyParsedData()
 }
 
 @Composable

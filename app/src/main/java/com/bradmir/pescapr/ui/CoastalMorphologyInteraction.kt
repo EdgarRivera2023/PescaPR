@@ -4,50 +4,6 @@ import com.google.android.gms.maps.model.LatLng
 import kotlin.math.abs
 import kotlin.math.cos
 
-internal data class MorphologyFeatureMetadata(
-    val id: String,
-    val nameEs: String?,
-    val nameEn: String?,
-    val structureType: String?,
-    val bottomType: String?,
-    val targetSpecies: String?,
-    val fishingStrategyEs: String?,
-    val fishingStrategyEn: String?,
-    val notes: String?,
-    val bestTide: String?,
-    val hazardsEs: String?,
-    val hazardsEn: String?,
-    val geometrySource: String?,
-    val fishingSource: String?,
-    val geometryConfidence: String?,
-    val fishingConfidence: String?
-) {
-    val displayName: String
-        get() = nameEs ?: nameEn ?: id
-}
-
-internal fun normalizeMorphologyValue(value: String?): String? = value
-    ?.trim()
-    ?.takeIf { it.isNotEmpty() && !it.equals("UNKNOWN", ignoreCase = true) }
-
-internal data class MorphologyPolygonData(
-    val id: String,
-    val outerBoundary: List<LatLng>,
-    val holes: List<List<LatLng>> = emptyList(),
-    val metadata: MorphologyFeatureMetadata
-)
-
-internal data class MorphologyLineData(
-    val id: String,
-    val points: List<LatLng>,
-    val metadata: MorphologyFeatureMetadata
-)
-
-internal data class MorphologyParsedData(
-    val polygons: List<MorphologyPolygonData> = emptyList(),
-    val lines: List<MorphologyLineData> = emptyList()
-)
-
 internal fun findMorphologyFeatureAt(
     tap: LatLng,
     data: MorphologyParsedData,

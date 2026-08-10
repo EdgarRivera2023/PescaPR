@@ -13,8 +13,8 @@ android {
         applicationId = "com.bradmir.pescapr"
         minSdk = 24
         targetSdk = 36
-        versionCode = 16
-        versionName = "2.3.4"
+        versionCode = 17
+        versionName = "2.3.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -137,6 +137,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

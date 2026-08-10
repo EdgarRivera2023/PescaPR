@@ -540,6 +540,14 @@ fun MainTabsScreen(database: AppDatabase) {
                     
                     Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
+                    // v2.3.5
+                    VersionNote(
+                        version = "v2.3.5 - 8/10/2026",
+                        changes = listOf(
+                            "Morfología Costera Actualizable: Recibe nuevas estructuras sin actualizar la app y conserva los datos disponibles sin conexión."
+                        )
+                    )
+
                     // v2.3.4
                     VersionNote(
                         version = "v2.3.4 - 8/10/2026",
