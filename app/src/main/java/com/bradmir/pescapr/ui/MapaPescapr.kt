@@ -45,7 +45,7 @@ import com.bradmir.pescapr.R
 import com.bradmir.pescapr.RecordEntity
 import com.bradmir.pescapr.data.model.RecordPesca
 import com.bradmir.pescapr.SpotEntity
-import com.bradmir.pescapr.RelojMareasCircular
+import com.bradmir.pescapr.ui.components.RelojMareasCircular
 import com.bradmir.pescapr.network.NoaaTideService
 import com.bradmir.pescapr.network.WeatherService
 import com.bradmir.pescapr.network.calculateTideFactor
