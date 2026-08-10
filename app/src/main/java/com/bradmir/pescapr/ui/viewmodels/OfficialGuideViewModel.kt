@@ -2,7 +2,7 @@ package com.bradmir.pescapr.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.bradmir.pescapr.FichaPez
+import com.bradmir.pescapr.data.model.FichaPez
 import com.bradmir.pescapr.data.OfficialGuideRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -53,7 +53,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.bradmir.pescapr.BuildConfig
-import com.bradmir.pescapr.FichaPez
+import com.bradmir.pescapr.data.model.FichaPez
 import com.bradmir.pescapr.R
 import com.bradmir.pescapr.data.OfficialGuideRepository
 import com.bradmir.pescapr.data.SpotPhotoRepository

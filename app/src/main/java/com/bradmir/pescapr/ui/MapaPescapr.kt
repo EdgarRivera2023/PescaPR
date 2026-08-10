@@ -40,7 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.bradmir.pescapr.AppDatabase
 import com.bradmir.pescapr.BuildConfig
-import com.bradmir.pescapr.FichaPez
+import com.bradmir.pescapr.data.model.FichaPez
 import com.bradmir.pescapr.R
 import com.bradmir.pescapr.RecordEntity
 import com.bradmir.pescapr.RecordPesca

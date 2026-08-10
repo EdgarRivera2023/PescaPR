@@ -2,7 +2,7 @@ package com.bradmir.pescapr.data
 
 import android.content.Context
 import android.util.Log
-import com.bradmir.pescapr.FichaPez
+import com.bradmir.pescapr.data.model.FichaPez
 import com.bradmir.pescapr.R
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson

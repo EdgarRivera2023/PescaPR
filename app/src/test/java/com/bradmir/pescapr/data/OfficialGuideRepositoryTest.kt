@@ -1,6 +1,6 @@
 package com.bradmir.pescapr.data
 
-import com.bradmir.pescapr.FichaPez
+import com.bradmir.pescapr.data.model.FichaPez
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue

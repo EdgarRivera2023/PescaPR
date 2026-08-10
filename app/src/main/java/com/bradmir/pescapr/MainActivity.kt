@@ -88,19 +88,6 @@ import kotlin.math.sin
 
 // --- 1. MODELOS DE DATOS ---
 
-data class FichaPez(
-    val id: String = "",
-    val nombreCientifico: String = "",
-    val nombreComun: String = "", // Común y locales
-    val nombreIngles: String = "",
-    val regulacionComercial: String = "",
-    val regulacionRecreativa: String = "",
-    val caracteristicas: List<String> = emptyList(),
-    val puedeSerConfundidoCon: String = "",
-    val fotosUrls: List<String> = emptyList(),
-    val localThumbResName: String = ""
-)
-
 data class RecordPesca(
     val id: String = "0", // Local Room ID as String
     val nombrePez: String = "",
