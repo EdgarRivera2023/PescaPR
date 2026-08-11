@@ -68,7 +68,10 @@ import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 @Composable
-fun PantallaGuiaOficialTab() {
+fun PantallaGuiaOficialTab(
+    esDeveloper: Boolean,
+    onDeveloperModeChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val viewModel: OfficialGuideViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -82,9 +85,6 @@ fun PantallaGuiaOficialTab() {
     val db = remember { com.google.firebase.firestore.FirebaseFirestore.getInstance("pescapr") }
     val storage = remember { FirebaseStorage.getInstance() }
     val coroutineScope = rememberCoroutineScope()
-
-    // --- SEGURIDAD: MODO DESARROLLADOR ---
-    var esDeveloper by remember { mutableStateOf(false) }
 
     val fichas by viewModel.fichas.collectAsState()
     var mostrarDialogoNueva by remember { mutableStateOf(false) }
@@ -145,7 +145,7 @@ fun PantallaGuiaOficialTab() {
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (BuildConfig.DEBUG) {
-                    TextButton(onClick = { esDeveloper = !esDeveloper }) {
+                    TextButton(onClick = { onDeveloperModeChange(!esDeveloper) }) {
                         Text(if(esDeveloper) "Admin ON" else "Modo Vista")
                     }
                 }

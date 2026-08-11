@@ -58,6 +58,7 @@ import com.bradmir.pescapr.ui.about.AboutDialog
 import com.bradmir.pescapr.ui.identificador.PantallaIdentificadorYRegulacionesTab
 import com.bradmir.pescapr.ui.guia.PantallaGuiaOficialTab
 import com.bradmir.pescapr.ui.records.PantallaRecordsTab
+import com.bradmir.pescapr.ui.AdminScreen
 import com.bradmir.pescapr.ui.components.GoldenDayBanner
 import com.bradmir.pescapr.ui.components.GoldenDayPlannerCard
 import com.bradmir.pescapr.ui.components.PaywallDialog
@@ -93,6 +94,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainTabsScreen(database: AppDatabase) {
     var currentScreen by remember { mutableIntStateOf(0) }
+    var esDeveloper by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -143,6 +145,10 @@ fun MainTabsScreen(database: AppDatabase) {
     // Foco para navegación desde Récords -> Mapa
     var spotIdAFocar by remember { mutableStateOf<String?>(null) }
     var mostrarDialogoAcercaDe by remember { mutableStateOf(false) }
+
+    LaunchedEffect(esDeveloper) {
+        if ((!BuildConfig.DEBUG || !esDeveloper) && currentScreen == 4) currentScreen = 0
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -236,6 +242,19 @@ fun MainTabsScreen(database: AppDatabase) {
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
+                if (BuildConfig.DEBUG && esDeveloper) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null) },
+                        label = { Text("Admin") },
+                        selected = currentScreen == 4,
+                        onClick = {
+                            currentScreen = 4
+                            coroutineScope.launch { drawerState.close() }
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+
                 Spacer(modifier = Modifier.weight(1f))
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -315,7 +334,10 @@ fun MainTabsScreen(database: AppDatabase) {
                         onFocoLogrado = { spotIdAFocar = null }
                     )
                     1 -> PantallaIdentificadorYRegulacionesTab()
-                    2 -> PantallaGuiaOficialTab()
+                    2 -> PantallaGuiaOficialTab(
+                        esDeveloper = esDeveloper,
+                        onDeveloperModeChange = { esDeveloper = it }
+                    )
                     3 -> PantallaRecordsTab(
                         database = database,
                         repository = catchRepository,
@@ -324,6 +346,7 @@ fun MainTabsScreen(database: AppDatabase) {
                             currentScreen = 0
                         }
                     )
+                    4 -> if (BuildConfig.DEBUG && esDeveloper) AdminScreen()
                 }
             }
         }
