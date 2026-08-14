@@ -184,6 +184,41 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
   predictions into FI-A.8 tooling. Treat results strictly as architecture evidence, not production
   accuracy.
 
+#### FI-CONTRIB — User-Contributed Training Dataset — PARALLEL LONG-TERM TRACK
+
+PescaPR will build the production 39-class dataset primarily from explicit, voluntary,
+rights-reviewed user contributions of real Puerto Rico angler photos, supplemented by PescaPR-owned,
+permissioned partner, public-domain, and compatible open-license sources. Personal photo use, ML
+training permission, and optional public display are separate grants. This track complements—but
+does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical `FichaPez.id` contract.
+
+- FI-CONTRIB.0 [x] Define the contributor architecture, consent/version principles, independent
+  rights grants, privacy sanitation, typed lifecycle, review/moderation roles, logical data/storage
+  boundaries, provenance/snapshot lineage, abuse controls, metrics, rollout phases, and legal
+  decision gates. Planning only; no collection is authorized.
+- FI-CONTRIB.1 [ ] **BLOCKS ALL PRODUCTION COLLECTION:** obtain qualified legal/privacy/product
+  approval for contributor agreement and privacy notice, contracting party, eligibility/minors,
+  consent evidence, license/vendor/transfer scope, public-display separation, withdrawal/deletion,
+  trained-model/snapshot treatment, retention, takedown, and incident processes.
+- FI-CONTRIB.2 [ ] Freeze backend-neutral contracts for versioned consent/grants, canonical-ID
+  submission and training-asset schemas, typed lifecycle/rejection/review events, storage/access
+  boundaries, privacy flags, and validation fixtures. Do not create upload UI or enable collection.
+- FI-CONTRIB.3 [ ] Design and implement isolated backend/Storage/Firestore architecture and security
+  rules for quarantined originals, private consent evidence, sanitized training derivatives, and
+  separately permissioned public-display copies; complete security/privacy testing before uploads.
+- FI-CONTRIB.4 [ ] Implement the explicit capture/Guía selection/contribution opt-in flow with
+  independent ML and public-display grants. Never migrate or enroll existing personal/community
+  photos automatically.
+- FI-CONTRIB.5 [ ] Implement role-separated Admin/Master moderation for rights, privacy, canonical
+  label correction, specialist escalation, quality, duplicates/correlation, abuse, withdrawal, and
+  final Dataset Approver decisions with append-only history.
+- FI-CONTRIB.6 [ ] Export only eligible sanitized assets into immutable group-safe snapshots using
+  the existing metadata, hash/pHash, leakage-validator, consent provenance, and test-set discipline;
+  bind every model run to exact snapshot and consent-policy versions.
+- FI-CONTRIB.7 [ ] Add privacy-safe coverage/admin metrics and the ML feedback loop: approved images
+  and independent groups per species, contributor/session/field diversity, review/rejection and
+  withdrawal counts, Stage 1 gaps, and snapshot/model utilization.
+
 #### Phase B — Model Training & Validation — PLANNED
 - FI-B.1 [ ] Evaluate and select an appropriate lightweight mobile image-classification
   architecture without prematurely binding the roadmap to one architecture.
