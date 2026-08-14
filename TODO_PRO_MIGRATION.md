@@ -213,6 +213,12 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
 - FI-CONTRIB.2 [ ] Freeze backend-neutral contracts for versioned consent/grants, canonical-ID
   submission and training-asset schemas, typed lifecycle/rejection/review events, storage/access
   boundaries, privacy flags, and validation fixtures. Do not create upload UI or enable collection.
+  - FI-CONTRIB.2-CONTRACTS [x] Implement backend-neutral Kotlin consent/right, lifecycle,
+    submission, sanitized training-asset, privacy, review/event, snapshot-membership, and model-run
+    provenance contracts with pure eligibility/transition validation and sanitized unit fixtures.
+    Collection remains structurally impossible: there is no UI, repository, backend adapter,
+    Firebase schema/rule, upload path, or runtime enablement. FI-CONTRIB.1 still blocks production
+    collection and the remaining persistence/access contract work keeps FI-CONTRIB.2 open.
 - FI-CONTRIB.3 [ ] Design and implement isolated backend/Storage/Firestore architecture and security
   rules for quarantined originals, private consent evidence, sanitized training derivatives, and
   separately permissioned public-display copies; complete security/privacy testing before uploads.
