@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "pescapr-fish-poc-class-manifest/v1",
+  "experimentId": "fish-identifier-poc-v1",
+  "status": "EXPERIMENT_ONLY_NOT_PRODUCTION",
+  "classCount": 5,
+  "orderingRule": "Ascending production classifier index; immutable for this experiment ID",
+  "sourceProductionManifest": {
+    "path": "app/src/main/assets/fish_classifier_manifest.json",
+    "schemaVersion": "1.0.0",
+    "catalogVersion": "1.0.0",
+    "sha256": "c42eea6e8b4a3696aa0b963e580fc588e844f181a74baeb3c3b0c182df5b3eb0"
+  },
+  "classes": [
+    { "index": 0, "fichaPezId": "5SkWhUQgG6JuanpfSLUT", "scientificName": "Alectis ciliaris", "spanishCommonName": "corcobado, pámpano, coronado, sol", "productionClassifierIndex": 4 },
+    { "index": 1, "fichaPezId": "AYGYpLjkS9LEv7AXVAuk", "scientificName": "Coryphaena hippurus", "spanishCommonName": "Dorado", "productionClassifierIndex": 5 },
+    { "index": 2, "fichaPezId": "MjsvzQbyRzyWqtjGYSBM", "scientificName": "Megalops atlanticus", "spanishCommonName": "sábalo, tarpón", "productionClassifierIndex": 10 },
+    { "index": 3, "fichaPezId": "PtbnNsBSRDwJzqGwvmv9", "scientificName": "Centropomus undecimalis", "spanishCommonName": "róbalo", "productionClassifierIndex": 14 },
+    { "index": 4, "fichaPezId": "osXhShrxuuFLdr0ftgmb", "scientificName": "Albula vulpes", "spanishCommonName": "macaco, conejo, piojo, ratón, macabí", "productionClassifierIndex": 32 }
+  ]
+}

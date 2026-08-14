@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "pescapr-fish-micro-poc-class-manifest/v1",
+  "experimentId": "fish-identifier-micro-poc-v1",
+  "status": "EXPERIMENT_ONLY_NOT_PRODUCTION",
+  "classCount": 3,
+  "orderingRule": "Ascending production classifier index; immutable for this experiment ID",
+  "purpose": "Prove the rights-to-training-to-mobile-export-to-canonical-FichaPez.id evaluation pipeline with a deliberately small technical dataset.",
+  "limitations": [
+    "Not a production classifier and not evidence of production accuracy.",
+    "Does not replace or reduce the frozen 39-class production catalog.",
+    "The 10-original minimum is an experiment-only exception and does not change Stage 1 dataset targets.",
+    "Validation results will have high uncertainty because the dataset is small."
+  ],
+  "sourceProductionManifest": {
+    "path": "app/src/main/assets/fish_classifier_manifest.json",
+    "schemaVersion": "1.0.0",
+    "catalogVersion": "1.0.0",
+    "sha256": "c42eea6e8b4a3696aa0b963e580fc588e844f181a74baeb3c3b0c182df5b3eb0"
+  },
+  "classes": [
+    {
+      "index": 0,
+      "fichaPezId": "RO2iuTVLAX11dy3aNgdf",
+      "scientificName": "Haemulon plumieri",
+      "spanishCommonName": "boquicolorao, cachicata, blanca, ronco, cicí, ronco, blanco, ronco grande",
+      "productionClassifierIndex": 15
+    },
+    {
+      "index": 1,
+      "fichaPezId": "XTLHUX6xHya0BOisyR6E",
+      "scientificName": "Ocyurus chrysurus",
+      "spanishCommonName": "Colirrubia, rabirrubia",
+      "productionClassifierIndex": 22
+    },
+    {
+      "index": 2,
+      "fichaPezId": "qDlhElFdSz5UOHDkU8Pe",
+      "scientificName": "Lactophrys triqueter",
+      "spanishCommonName": "Chapín liso",
+      "productionClassifierIndex": 36
+    }
+  ]
+}

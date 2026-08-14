@@ -124,6 +124,11 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
       rows (8 positive / 14 OOD; TRAIN 13 / VALIDATION 5 / TEST 4), including checksummed
       `testset-v1`, warning dispositions, partition overrides, and sanitized repository manifests.
       FI-A.7 is complete with zero unresolved structural errors. The broader pilot remains open.
+    - FI-A.7-PILOT-EXPERIMENT-SUBSET [ ] Expand to an experiment-quality five-species development
+      subset. The 2026-08-14 source/governance checkpoint documents an exact 242-image shortfall
+      to the 50-per-species minimum, direct-source limitations, and the pending qualified review
+      queues for Scomberomorus, Seriola, and Sphyraena. No new candidates were approved or acquired;
+      specialist decisions and source-diverse item-level discovery are the next operational gates.
 - FI-A.8 [ ] Build and validate the documented hybrid unsupported-fish/non-fish rejection
   strategy, including an OOD corpus and evidence-based confidence/margin thresholds; require a
   new catalog/model version if evaluation justifies an explicit unknown/other output class.
@@ -137,6 +142,47 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
 - FI-A.10 [ ] Treat the current approximately 124 reference-image URLs (about 1–5 per species)
   only as reference/seed material; they are not sufficient by themselves, and a substantially
   larger labeled dataset will almost certainly be required for a robust field-photo classifier.
+
+#### Proof-of-Concept Bridge — Five-Class Experiment
+- FI-POC.1 [x] Select five lower-review-risk experiment classes and freeze the separate
+  `fish-identifier-poc-v1` class manifest using canonical `FichaPez.id` outputs. The POC is
+  explicitly non-production, preserves the immutable 39-class manifest, and does not weaken the
+  specialist gates in the parallel five-species production pilot.
+- FI-POC.2 [ ] Acquire, approve, hash, group, and validate 30–50 independent originals for each
+  POC class (150 minimum; 200–250 preferred), plus 50–100 development OOD originals, then freeze a
+  group-safe POC TRAIN/VALIDATION snapshot. Validate snook and bonefish source feasibility before
+  binary acquisition; do not use or alter production `testset-v1`.
+  - FI-POC.2-DISCOVERY [x] Complete metadata-only feasibility for all five POC v1 classes. POC v1
+    is NO_GO under the current approved-source policy: snook yields four plausible independent
+    candidates and bonefish only two independence-adjusted groups, while no class establishes the
+    35–40-candidate buffer. Preserve v1 unchanged and perform a metadata-first POC v2 replacement
+    evaluation before any binary acquisition.
+  - FI-POC.2-REVISION [ ] Evaluate and freeze a separate POC v2 only after replacement candidates
+    demonstrate a credible rights- and independence-adjusted path to at least 30 originals.
+    - FI-POC.2-REVISION-FEASIBILITY [x] Complete metadata-first review of the initial five-class
+      replacement shortlist. Result: NO_GO. Permitted-source volume collapses to 6–15 independent groups
+      per class, no candidate reaches the 35–45 discovery buffer, and no exact five-class set yet
+      has a credible path to 30 accepted originals per class. Preserve POC v1 and do not freeze
+      POC v2; the next action is a new shortlist plus targeted permission/source checks for the
+      strongest leads, `Ocyurus chrysurus` and `Haemulon plumieri`.
+- FI-POC.3 [ ] Run the first Phase B training/export experiment against the frozen POC dataset,
+  emit canonical-ID predictions for the existing evaluation tooling, and use validation/OOD—not
+  locked production TEST—to exercise FI-A.8 threshold-policy analysis.
+
+#### Technical Micro-POC Bridge — Three-Class Architecture Proof
+- FI-MICRO-POC.1 [x] Freeze `fish-identifier-micro-poc-v1` as an
+  `EXPERIMENT_ONLY_NOT_PRODUCTION` three-class contract using canonical `FichaPez.id` outputs for
+  `Haemulon plumieri`, `Ocyurus chrysurus`, and `Lactophrys triqueter`. Its experiment-only gate is
+  10 accepted independent originals per class (12–15 preferred) and does not reduce any five-class,
+  Stage 1, or production requirement.
+- FI-MICRO-POC.2 [ ] Reuse the POC v2 feasibility queue to adjudicate and independently approve,
+  acquire, hash, group, and validate 10–15 originals per micro-POC class. Stop without lowering the
+  gate if any class cannot reach 10; reuse only unlocked development OOD and never production
+  `testset-v1`.
+- FI-MICRO-POC.3 [ ] Train the first small transfer-learning model, export a mobile-compatible
+  artifact, verify canonical-ID output mapping, and emit real validation/development-OOD
+  predictions into FI-A.8 tooling. Treat results strictly as architecture evidence, not production
+  accuracy.
 
 #### Phase B — Model Training & Validation — PLANNED
 - FI-B.1 [ ] Evaluate and select an appropriate lightweight mobile image-classification
