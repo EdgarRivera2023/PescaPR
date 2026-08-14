@@ -3,6 +3,9 @@ package com.bradmir.pescapr.data.contribution
 enum class ContributionValidationError {
     MISSING_CONSENT_REFERENCE,
     CONSENT_REFERENCE_MISMATCH,
+    CONSENT_VERSION_NOT_FOUND,
+    CONSENT_VERSION_NOT_VALID_AT_ACCEPTANCE,
+    CONSENT_LOCALE_MISMATCH,
     OWNERSHIP_NOT_CONFIRMED,
     ML_TRAINING_NOT_ALLOWED,
     CONSENT_WITHDRAWN,
@@ -29,6 +32,15 @@ object FishTrainingContributionRules {
         submission: ContributionSubmission,
         consent: ContributionConsent,
         validFichaPezIds: Set<String>
+    ): Set<ContributionValidationError> = submissionPrerequisiteErrors(
+        submission, consent, validFichaPezIds, requireApprovedStatus = true
+    )
+
+    fun submissionPrerequisiteErrors(
+        submission: ContributionSubmission,
+        consent: ContributionConsent,
+        validFichaPezIds: Set<String>,
+        requireApprovedStatus: Boolean = false
     ): Set<ContributionValidationError> = buildSet {
         if (submission.consentId.isBlank() || submission.consentVersion.isBlank()) {
             add(ContributionValidationError.MISSING_CONSENT_REFERENCE)
@@ -44,7 +56,7 @@ object FishTrainingContributionRules {
             submission.withdrawnAtEpochMillis != null ||
             submission.excludedAtEpochMillis != null
         ) add(ContributionValidationError.SUBMISSION_WITHDRAWN_OR_EXCLUDED)
-        if (submission.status != ContributionStatus.APPROVED) {
+        if (requireApprovedStatus && submission.status != ContributionStatus.APPROVED) {
             add(ContributionValidationError.SUBMISSION_NOT_APPROVED)
         }
         if (submission.rightsReviewState != ReviewState.APPROVED) {
@@ -65,6 +77,23 @@ object FishTrainingContributionRules {
         val approvedId = submission.approvedFichaPezId
         if (approvedId.isNullOrBlank()) add(ContributionValidationError.MISSING_APPROVED_FICHA_PEZ_ID)
         else if (approvedId !in validFichaPezIds) add(ContributionValidationError.UNKNOWN_FICHA_PEZ_ID)
+    }
+
+    fun consentRegistryErrors(
+        consent: ContributionConsent,
+        registry: ConsentVersionRegistry
+    ): Set<ContributionValidationError> = buildSet {
+        val version = registry.resolve(consent.consentVersion)
+        if (version == null) {
+            add(ContributionValidationError.CONSENT_VERSION_NOT_FOUND)
+        } else {
+            if (version.locale != consent.consentLocale) {
+                add(ContributionValidationError.CONSENT_LOCALE_MISMATCH)
+            }
+            if (!registry.wasValidAtAcceptance(consent)) {
+                add(ContributionValidationError.CONSENT_VERSION_NOT_VALID_AT_ACCEPTANCE)
+            }
+        }
     }
 
     fun trainingAssetErrors(

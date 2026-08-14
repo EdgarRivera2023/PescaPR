@@ -4,6 +4,7 @@ package com.bradmir.pescapr.data.contribution
 data class ContributionConsent(
     val consentId: String,
     val consentVersion: String,
+    val consentLocale: String,
     val acceptedAtEpochMillis: Long,
     val ownershipConfirmed: Boolean,
     val mlTrainingAllowed: Boolean,

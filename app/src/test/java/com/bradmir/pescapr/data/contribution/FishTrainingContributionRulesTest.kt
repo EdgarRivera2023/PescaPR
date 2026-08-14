@@ -142,6 +142,7 @@ class FishTrainingContributionRulesTest {
         val consent = ContributionConsent(
             consentId = "consent-fixture-1",
             consentVersion = "fish-training-consent-test-v1",
+            consentLocale = "en-US",
             acceptedAtEpochMillis = 1_000,
             ownershipConfirmed = true,
             mlTrainingAllowed = true

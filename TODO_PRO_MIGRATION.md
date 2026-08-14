@@ -219,6 +219,11 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
     Collection remains structurally impossible: there is no UI, repository, backend adapter,
     Firebase schema/rule, upload path, or runtime enablement. FI-CONTRIB.1 still blocks production
     collection and the remaining persistence/access contract work keeps FI-CONTRIB.2 open.
+  - FI-CONTRIB.2-MODERATION-CONTRACTS [x] Add explicit backend-neutral moderation commands,
+    typed results/reasons, optimistic state/revision guards, append-only audit outputs, and a
+    consent-version registry abstraction with an empty-by-default in-memory implementation and
+    synthetic tests. No production-selectable consent version, persistence, Firebase adapter, UI,
+    or collection path exists; FI-CONTRIB.1 remains blocking.
 - FI-CONTRIB.3 [ ] Design and implement isolated backend/Storage/Firestore architecture and security
   rules for quarantined originals, private consent evidence, sanitized training derivatives, and
   separately permissioned public-display copies; complete security/privacy testing before uploads.
