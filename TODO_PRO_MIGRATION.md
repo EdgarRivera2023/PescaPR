@@ -179,6 +179,16 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
   acquire, hash, group, and validate 10–15 originals per micro-POC class. Stop without lowering the
   gate if any class cannot reach 10; reuse only unlocked development OOD and never production
   `testset-v1`.
+  - FI-MICRO-POC.2-ADJUDICATION [ ] **BLOCKED at the required stop gate:** exact item-page rights,
+    label/quality, and conservative grouping review still produces only 7 qualified independent
+    `Haemulon plumieri` groups. The final public/open-source rescue added six useful independent
+    records but zero rights-approved groups; the former FishBase pending item was confirmed as
+    prohibited CC BY-NC. No approval packet was issued and the 10-per-class threshold was not lowered.
+    Progress now requires explicit direct permission for at least three independent groups or future
+    rights-cleared PescaPR-contributed imagery.
+    - FI-MICRO-POC.2-HAEMULON-RESCUE [x] Complete the one-time narrow source rescue, preserve
+      conservative grouping, and record five permission-only opportunities. Public/open supply did
+      not close the three-group gap; do not begin another discovery strategy automatically.
 - FI-MICRO-POC.3 [ ] Train the first small transfer-learning model, export a mobile-compatible
   artifact, verify canonical-ID output mapping, and emit real validation/development-OOD
   predictions into FI-A.8 tooling. Treat results strictly as architecture evidence, not production
