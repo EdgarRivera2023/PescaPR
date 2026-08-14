@@ -1,0 +1,357 @@
+{
+  "approvalSummary": {
+    "labelsApproved": 22,
+    "rightsApproved": 22
+  },
+  "classifierManifest": {
+    "catalogVersion": "1.0.0",
+    "schemaVersion": "1.0.0",
+    "sha256": "c42eea6e8b4a3696aa0b963e580fc588e844f181a74baeb3c3b0c182df5b3eb0"
+  },
+  "counts": {
+    "ood": 14,
+    "positive": 8,
+    "test": 4,
+    "total": 22,
+    "train": 13,
+    "validation": 5
+  },
+  "createdAt": "2026-08-14T00:00:00Z",
+  "datasetSchemaVersion": "1.0.0",
+  "groupingCoverage": {
+    "contributorGroupId": {
+      "populated": 0,
+      "total": 22
+    },
+    "derivativeGroupId": {
+      "populated": 22,
+      "total": 22
+    },
+    "individualFishGroupId": {
+      "populated": 12,
+      "total": 22
+    },
+    "sessionGroupId": {
+      "populated": 22,
+      "total": 22
+    },
+    "sourceGroupId": {
+      "populated": 22,
+      "total": 22
+    }
+  },
+  "imageInventory": [
+    {
+      "internalImageId": "pilot-b1-wc-10058528",
+      "pHash64": "f03497caec363299",
+      "sha256": "652eb0b669b0f44cc3c478791a5161bd3f82b9c9a29626c1b934a20c74347625"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-107176216",
+      "pHash64": "d1a417da8c0ff266",
+      "sha256": "2e597c3be8efe9b605d78e1b46b9ba6e7a28614e6b4526e94d989a5360c4d1f6"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-152817751",
+      "pHash64": "b59dc1c02f371c9c",
+      "sha256": "26cf559f83c58773818a3ea82a4208d9903565f6a053bdb0f07801aee854634f"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-152817762",
+      "pHash64": "b3974c4c4e331772",
+      "sha256": "a0df7dda5e0b367184962702c3c9a682025ffd9663c19def06a107ea0897a8ac"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-1734232",
+      "pHash64": "e41ae591daa51ae6",
+      "sha256": "8942f7a3a298f8305a03b6e28054f28c71429ba39fc6d6d88b02f237b8803ec0"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-25501633",
+      "pHash64": "d19fc2683d31e4d2",
+      "sha256": "5f4498c196d37ac78b7832631acf5876d5e20c866856ef035846924746d8e8a1"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-33573857",
+      "pHash64": "c2c23e3dcfc2603d",
+      "sha256": "51d79de83224103e1e1fc7c30af4d11239f176577a0757eaeb63bd20facfc452"
+    },
+    {
+      "internalImageId": "pilot-b1-wc-92968530",
+      "pHash64": "91a1cec0ec9b572e",
+      "sha256": "5c0af94a2e515a0afa9f4514f23a4489680c1dd8f48b21307c1daf3ccb6a5e8c"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-119270848",
+      "pHash64": "a39cbcab72d50d60",
+      "sha256": "b5ffd8690665f9adab1be19a879fa39ea92ba77254d9c9492852a9ffb605baf5"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-12104762",
+      "pHash64": "c048caee3d4d693d",
+      "sha256": "1f38c1b43dab3b18191fb4724662e5fd49e4b3a229e4413afcd8e51378e6ceb8"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-140503658",
+      "pHash64": "e7a71dc8247692c9",
+      "sha256": "878ab56a3fe9f27411d79d43bbf2b057f4a32268cda31e92ad4c254bb5e8b07d"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-181803762",
+      "pHash64": "faac85752a99a14e",
+      "sha256": "ddd961096e1f9f431fb3725ed3acdcd319d173db6ea3d8d48f76a276ff3f897f"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-181803763",
+      "pHash64": "f28d8d75289ba34c",
+      "sha256": "e63c3c92d8cfe62acec2f5edd12d00b910ca5d38c7342b1a251b084b03b2a64f"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-26396862",
+      "pHash64": "a978c85ac2cf1c9d",
+      "sha256": "ae942ae39b468ad770ca737b69eecf0b053729ef7efc0313614cf4d53a96937c"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-29209984",
+      "pHash64": "ec95cada85f890e4",
+      "sha256": "590640abe7c16c92946e6beab974089655313a102c7c053eac1f6907cf0982e9"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-33200360",
+      "pHash64": "807e4ba8a39f98e3",
+      "sha256": "931aeb212bd5bd1c3d3d85df2556fe2b91d404ced418f88ba6441f7f1cf144d6"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-346756",
+      "pHash64": "91297483175ef933",
+      "sha256": "7aaa8219ad63b9e867872f8b0416df3bb5a71d6a99e78889cb2575a6ba444d7d"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-35648764",
+      "pHash64": "9e3161ce30db663a",
+      "sha256": "324a9215c597c115b32002b0d8e25cf577971988eca3a64768b2b89afdb603a1"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-37313734",
+      "pHash64": "d48b37c89728d42f",
+      "sha256": "58643e04d236cccd88cd1e1da6de47e4381633ff4d38b47f968cedd4c7d19bbe"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-5191439",
+      "pHash64": "d435269a6b0f9ba1",
+      "sha256": "628ea1d48f68f109413365d9dfe74d80c3f29a377a01439105897508a4038c54"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-61708668",
+      "pHash64": "c16a383f43b0ce4f",
+      "sha256": "1e6164b76843a3617673f96e41f0db0d35872a77ded9ae26a2a48a53710580de"
+    },
+    {
+      "internalImageId": "pilot-ood-b1-wc-92100670",
+      "pHash64": "93616b5997316c33",
+      "sha256": "241f977e4b8fbb1a6d6708716ebb835faab2c401817452d337463dcf034ce167"
+    }
+  ],
+  "licenseSummary": {
+    "CC BY 2.0": 8,
+    "CC BY 3.0": 2,
+    "CC BY 4.0": 1,
+    "CC0": 5,
+    "Public domain": 6
+  },
+  "metadata": {
+    "filename": "pilot_metadata.csv",
+    "sha256": "e6fcebfe83a040677190155b3af7b2236dbc9d130c2e0eaf4dae33206ff3b353"
+  },
+  "pHashReviewStatus": "RESOLVED_WITH_DOCUMENTED_DISPOSITIONS",
+  "partition": {
+    "algorithmVersion": "source-group-hash/v1",
+    "seed": "pescapr-partition-v1"
+  },
+  "partitionOverrides": [
+    {
+      "decision": "MOVE_TO_VALIDATION",
+      "fromPartition": "TEST",
+      "internalImageId": "pilot-b1-wc-152817751",
+      "reason": "Controlled FDA reference is not representative enough for locked TEST.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "toPartition": "VALIDATION"
+    },
+    {
+      "decision": "MOVE_TO_VALIDATION",
+      "fromPartition": "TEST",
+      "internalImageId": "pilot-b1-wc-25501633",
+      "reason": "Aquarium image is not representative enough for locked TEST.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "toPartition": "VALIDATION"
+    },
+    {
+      "decision": "MOVE_TO_TRAIN",
+      "fromPartition": "TEST",
+      "internalImageId": "pilot-ood-b1-wc-33200360",
+      "reason": "Two boat-only OOD rows make the proposed TEST composition too narrow.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "toPartition": "TRAIN"
+    },
+    {
+      "decision": "MOVE_TO_TRAIN",
+      "fromPartition": "TEST",
+      "internalImageId": "pilot-ood-b1-wc-37313734",
+      "reason": "Two boat-only OOD rows make the proposed TEST composition too narrow.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "toPartition": "TRAIN"
+    },
+    {
+      "decision": "PROPOSE_FOR_TEST",
+      "fromPartition": "TRAIN",
+      "internalImageId": "pilot-b1-wc-1734232",
+      "reason": "Caught/held Dorado on a boat better represents PescaPR submissions.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Codex representativeness review",
+      "toPartition": "TEST"
+    },
+    {
+      "decision": "PROPOSE_FOR_TEST",
+      "fromPartition": "TRAIN",
+      "internalImageId": "pilot-b1-wc-107176216",
+      "reason": "Adult Alectis from an independent natural-underwater source adds a second species.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Codex representativeness review",
+      "toPartition": "TEST"
+    },
+    {
+      "decision": "PROPOSE_FOR_TEST",
+      "fromPartition": "VALIDATION",
+      "internalImageId": "pilot-ood-b1-wc-12104762",
+      "reason": "Independent natural-underwater nurse shark provides fish-like OOD coverage.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Codex representativeness review",
+      "toPartition": "TEST"
+    },
+    {
+      "decision": "PROPOSE_FOR_TEST",
+      "fromPartition": "VALIDATION",
+      "internalImageId": "pilot-ood-b1-wc-92100670",
+      "reason": "Puerto Rico beach/water scene provides locally relevant non-fish OOD coverage.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Codex representativeness review",
+      "toPartition": "TEST"
+    }
+  ],
+  "perOodCategoryCounts": {
+    "beach_water": 2,
+    "boat": 2,
+    "crustacean": 2,
+    "fishing_gear": 2,
+    "person": 2,
+    "shark_ray": 2,
+    "unsupported_fish": 2
+  },
+  "perSpeciesCounts": [
+    {
+      "count": 3,
+      "fichaPezId": "5SkWhUQgG6JuanpfSLUT",
+      "scientificName": "Alectis ciliaris"
+    },
+    {
+      "count": 5,
+      "fichaPezId": "AYGYpLjkS9LEv7AXVAuk",
+      "scientificName": "Coryphaena hippurus"
+    }
+  ],
+  "schemaVersion": "pescapr-fish-dataset-snapshot/v1",
+  "snapshotChecksumSha256": "a40b31f3a58b8fbae6d7e16682782fd5efd08c28274044ae2187566aeae877b2",
+  "snapshotId": "pilot-snapshot-v1",
+  "sourceSummary": {
+    "Wikimedia Commons": 22
+  },
+  "testset": {
+    "createdAt": "2026-08-14T00:00:00Z",
+    "humanApprovalStatus": "APPROVED",
+    "rows": [
+      {
+        "fichaPezId": "5SkWhUQgG6JuanpfSLUT",
+        "internalImageId": "pilot-b1-wc-107176216",
+        "lockStatus": "LOCKED",
+        "oodCategory": "",
+        "reviewDate": "2026-08-14",
+        "reviewer": "Edgar Rivera",
+        "sampleType": "POSITIVE",
+        "scientificName": "Alectis ciliaris",
+        "sessionGroupId": "session-alectis-noaa-reef1701",
+        "sha256": "2e597c3be8efe9b605d78e1b46b9ba6e7a28614e6b4526e94d989a5360c4d1f6",
+        "sourceGroupId": "alectis-noaa-reef1701"
+      },
+      {
+        "fichaPezId": "AYGYpLjkS9LEv7AXVAuk",
+        "internalImageId": "pilot-b1-wc-1734232",
+        "lockStatus": "LOCKED",
+        "oodCategory": "",
+        "reviewDate": "2026-08-14",
+        "reviewer": "Edgar Rivera",
+        "sampleType": "POSITIVE",
+        "scientificName": "Coryphaena hippurus",
+        "sessionGroupId": "session-cory-jeff-weiss-2005-catch",
+        "sha256": "8942f7a3a298f8305a03b6e28054f28c71429ba39fc6d6d88b02f237b8803ec0",
+        "sourceGroupId": "cory-jeff-weiss-2005-catch"
+      },
+      {
+        "fichaPezId": "",
+        "internalImageId": "pilot-ood-b1-wc-12104762",
+        "lockStatus": "LOCKED",
+        "oodCategory": "shark_ray",
+        "reviewDate": "2026-08-14",
+        "reviewer": "Edgar Rivera",
+        "sampleType": "OOD",
+        "scientificName": "",
+        "sessionGroupId": "session-ood-wc-12104762",
+        "sha256": "1f38c1b43dab3b18191fb4724662e5fd49e4b3a229e4413afcd8e51378e6ceb8",
+        "sourceGroupId": "source-ood-wc-12104762"
+      },
+      {
+        "fichaPezId": "",
+        "internalImageId": "pilot-ood-b1-wc-92100670",
+        "lockStatus": "LOCKED",
+        "oodCategory": "beach_water",
+        "reviewDate": "2026-08-14",
+        "reviewer": "Edgar Rivera",
+        "sampleType": "OOD",
+        "scientificName": "",
+        "sessionGroupId": "session-ood-wc-92100670",
+        "sha256": "241f977e4b8fbb1a6d6708716ebb835faab2c401817452d337463dcf034ce167",
+        "sourceGroupId": "source-ood-wc-92100670"
+      }
+    ],
+    "schemaVersion": "pescapr-fish-testset/v1",
+    "testsetChecksumSha256": "8a76f69dda03329972b07ace320a9a5448a5c7ff6e37daa5e7f437030f204976",
+    "testsetVersion": "testset-v1"
+  },
+  "validator": {
+    "filename": "validate_dataset.py",
+    "sha256": "1b0e66201d514a80a6b88b3cdd0b094e5db2f2285502e93639a90aa56b9950f0"
+  },
+  "warningDispositions": [
+    {
+      "classification": "MANUAL_REVIEW_RESOLVED",
+      "matchText": "pilot-ood-b1-wc-181803762 and pilot-ood-b1-wc-181803763",
+      "rationale": "Distinct SHA-256/source items but correlated creator/session and pHash distance 8; both share controlling source/session groups and TRAIN.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Codex grouping audit",
+      "status": "RESOLVED",
+      "warningCode": "PERCEPTUAL_SIMILAR_REVIEW"
+    },
+    {
+      "classification": "EXPECTED_METADATA_LIMITATION",
+      "matchText": "contributorGroupId",
+      "rationale": "All 22 records are public-source acquisitions rather than PescaPR contributor submissions; creator/provenance is recorded and contributor IDs must not be fabricated.",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Codex metadata audit",
+      "status": "RESOLVED",
+      "warningCode": "GROUP_COVERAGE"
+    }
+  ]
+}

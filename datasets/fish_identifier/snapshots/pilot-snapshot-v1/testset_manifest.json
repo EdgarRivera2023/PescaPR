@@ -1,0 +1,61 @@
+{
+  "createdAt": "2026-08-14T00:00:00Z",
+  "humanApprovalStatus": "APPROVED",
+  "rows": [
+    {
+      "fichaPezId": "5SkWhUQgG6JuanpfSLUT",
+      "internalImageId": "pilot-b1-wc-107176216",
+      "lockStatus": "LOCKED",
+      "oodCategory": "",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "sampleType": "POSITIVE",
+      "scientificName": "Alectis ciliaris",
+      "sessionGroupId": "session-alectis-noaa-reef1701",
+      "sha256": "2e597c3be8efe9b605d78e1b46b9ba6e7a28614e6b4526e94d989a5360c4d1f6",
+      "sourceGroupId": "alectis-noaa-reef1701"
+    },
+    {
+      "fichaPezId": "AYGYpLjkS9LEv7AXVAuk",
+      "internalImageId": "pilot-b1-wc-1734232",
+      "lockStatus": "LOCKED",
+      "oodCategory": "",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "sampleType": "POSITIVE",
+      "scientificName": "Coryphaena hippurus",
+      "sessionGroupId": "session-cory-jeff-weiss-2005-catch",
+      "sha256": "8942f7a3a298f8305a03b6e28054f28c71429ba39fc6d6d88b02f237b8803ec0",
+      "sourceGroupId": "cory-jeff-weiss-2005-catch"
+    },
+    {
+      "fichaPezId": "",
+      "internalImageId": "pilot-ood-b1-wc-12104762",
+      "lockStatus": "LOCKED",
+      "oodCategory": "shark_ray",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "sampleType": "OOD",
+      "scientificName": "",
+      "sessionGroupId": "session-ood-wc-12104762",
+      "sha256": "1f38c1b43dab3b18191fb4724662e5fd49e4b3a229e4413afcd8e51378e6ceb8",
+      "sourceGroupId": "source-ood-wc-12104762"
+    },
+    {
+      "fichaPezId": "",
+      "internalImageId": "pilot-ood-b1-wc-92100670",
+      "lockStatus": "LOCKED",
+      "oodCategory": "beach_water",
+      "reviewDate": "2026-08-14",
+      "reviewer": "Edgar Rivera",
+      "sampleType": "OOD",
+      "scientificName": "",
+      "sessionGroupId": "session-ood-wc-92100670",
+      "sha256": "241f977e4b8fbb1a6d6708716ebb835faab2c401817452d337463dcf034ce167",
+      "sourceGroupId": "source-ood-wc-92100670"
+    }
+  ],
+  "schemaVersion": "pescapr-fish-testset/v1",
+  "testsetChecksumSha256": "8a76f69dda03329972b07ace320a9a5448a5c7ff6e37daa5e7f437030f204976",
+  "testsetVersion": "testset-v1"
+}

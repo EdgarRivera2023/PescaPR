@@ -1,0 +1,14 @@
+{
+  "evaluationRunId": null,
+  "modelVersion": null,
+  "modelChecksum": null,
+  "classifierManifestChecksum": "c42eea6e8b4a3696aa0b963e580fc588e844f181a74baeb3c3b0c182df5b3eb0",
+  "datasetSnapshotId": null,
+  "testsetVersion": null,
+  "preprocessingVersion": null,
+  "timestamp": null,
+  "thresholdPolicyVersion": "UNSELECTED",
+  "scoreSemantics": null,
+  "calibrationMethod": "NONE_NOT_EVALUATED",
+  "notes": "Template only. Null values must be resolved for a real evaluation run; no model or thresholds currently exist."
+}

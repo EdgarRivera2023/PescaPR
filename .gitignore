@@ -18,3 +18,25 @@ google-services.json
 ai.context
 .repomixignore
 .artifacts/
+
+# Fish Identifier pilot: repository-local emergency/temporary binary workspace only.
+# Canonical CSV metadata, fixtures, tools, manifests, and sanitized reports remain tracked.
+/datasets/fish_identifier/pilot/raw/
+/datasets/fish_identifier/pilot/quarantine/
+/datasets/fish_identifier/pilot/private_evidence/
+/datasets/fish_identifier/pilot/download_cache/
+/datasets/fish_identifier/pilot/tmp/
+/datasets/fish_identifier/pilot/reports/contact_sheets/
+/datasets/fish_identifier/pilot/reports/duplicate_analysis_tmp/
+/datasets/fish_identifier/pilot/approved/**/*.jpg
+/datasets/fish_identifier/pilot/approved/**/*.jpeg
+/datasets/fish_identifier/pilot/approved/**/*.png
+/datasets/fish_identifier/pilot/approved/**/*.webp
+/datasets/fish_identifier/pilot/approved/**/*.heic
+/datasets/fish_identifier/pilot/approved/**/*.heif
+/datasets/fish_identifier/pilot/approved/**/*.tif
+/datasets/fish_identifier/pilot/approved/**/*.tiff
+
+# Generated caches from repository-local Python dataset tooling.
+__pycache__/
+*.py[cod]

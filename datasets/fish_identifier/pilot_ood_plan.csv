@@ -1,0 +1,10 @@
+oodCategory,target,whyIncluded
+unsupported_fish,10,"Exercises blank canonical ID handling and hard negatives closest to supported classes"
+shark_ray,5,"Exercises unsupported vertebrate fish-like forms"
+crustacean,5,"Exercises common non-fish catch content"
+fishing_gear,5,"Exercises rods, lures, nets, and tackle without a supported fish"
+person,5,"Exercises people and hands without a classifiable target fish"
+cooler,5,"Exercises a frequent catch-photo context without a supported fish"
+boat,5,"Exercises vessel scenes without a supported fish"
+beach_water,5,"Exercises shore and water backgrounds without a supported fish"
+blurry_invalid,5,"Exercises technically decodable but unusable identification inputs"

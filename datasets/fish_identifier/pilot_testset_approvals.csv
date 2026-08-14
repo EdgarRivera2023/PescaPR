@@ -1,0 +1,9 @@
+internalImageId,testsetVersion,decision,reviewer,reviewDate,notes
+pilot-b1-wc-152817751,testset-v1,MOVE_TO_VALIDATION,Edgar Rivera,2026-08-14,"Controlled FDA reference is not representative enough for locked TEST."
+pilot-b1-wc-25501633,testset-v1,MOVE_TO_VALIDATION,Edgar Rivera,2026-08-14,"Aquarium image is not representative enough for locked TEST."
+pilot-ood-b1-wc-33200360,testset-v1,MOVE_TO_TRAIN,Edgar Rivera,2026-08-14,"Two boat-only OOD rows make the proposed TEST composition too narrow."
+pilot-ood-b1-wc-37313734,testset-v1,MOVE_TO_TRAIN,Edgar Rivera,2026-08-14,"Two boat-only OOD rows make the proposed TEST composition too narrow."
+pilot-b1-wc-1734232,testset-v1,APPROVE_FOR_LOCKED_TEST,Edgar Rivera,2026-08-14,"Revised caught/held field-style positive approved for locked TEST."
+pilot-b1-wc-107176216,testset-v1,APPROVE_FOR_LOCKED_TEST,Edgar Rivera,2026-08-14,"Revised different-species natural-underwater positive approved for locked TEST."
+pilot-ood-b1-wc-12104762,testset-v1,APPROVE_FOR_LOCKED_TEST,Edgar Rivera,2026-08-14,"Revised fish-like shark/ray OOD approved for locked TEST."
+pilot-ood-b1-wc-92100670,testset-v1,APPROVE_FOR_LOCKED_TEST,Edgar Rivera,2026-08-14,"Revised Puerto Rico beach/water non-fish OOD approved for locked TEST."

@@ -1,0 +1,13 @@
+{
+  "evaluationRunId": "synthetic-run-only",
+  "modelVersion": "synthetic-model-no-asset",
+  "modelChecksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "classifierManifestChecksum": "c42eea6e8b4a3696aa0b963e580fc588e844f181a74baeb3c3b0c182df5b3eb0",
+  "datasetSnapshotId": "synthetic-snapshot",
+  "testsetVersion": "synthetic-testset",
+  "preprocessingVersion": "synthetic-preprocessing",
+  "timestamp": "2026-08-14T00:00:00Z",
+  "thresholdPolicyVersion": "synthetic-policy",
+  "scoreSemantics": "synthetic ranking scores; not probabilities",
+  "calibrationMethod": "NONE"
+}

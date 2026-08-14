@@ -1,0 +1,3 @@
+warningCode,matchText,classification,status,reviewer,reviewDate,rationale
+PERCEPTUAL_SIMILAR_REVIEW,pilot-ood-b1-wc-181803762 and pilot-ood-b1-wc-181803763,MANUAL_REVIEW_RESOLVED,RESOLVED,Codex grouping audit,2026-08-14,"Distinct SHA-256/source items but correlated creator/session and pHash distance 8; both share controlling source/session groups and TRAIN."
+GROUP_COVERAGE,contributorGroupId,EXPECTED_METADATA_LIMITATION,RESOLVED,Codex metadata audit,2026-08-14,"All 22 records are public-source acquisitions rather than PescaPR contributor submissions; creator/provenance is recorded and contributor IDs must not be fabricated."

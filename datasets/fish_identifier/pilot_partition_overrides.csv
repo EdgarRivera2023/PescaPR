@@ -1,0 +1,9 @@
+internalImageId,fromPartition,toPartition,decision,reviewer,reviewDate,reason
+pilot-b1-wc-152817751,TEST,VALIDATION,MOVE_TO_VALIDATION,Edgar Rivera,2026-08-14,"Controlled FDA reference is not representative enough for locked TEST."
+pilot-b1-wc-25501633,TEST,VALIDATION,MOVE_TO_VALIDATION,Edgar Rivera,2026-08-14,"Aquarium image is not representative enough for locked TEST."
+pilot-ood-b1-wc-33200360,TEST,TRAIN,MOVE_TO_TRAIN,Edgar Rivera,2026-08-14,"Two boat-only OOD rows make the proposed TEST composition too narrow."
+pilot-ood-b1-wc-37313734,TEST,TRAIN,MOVE_TO_TRAIN,Edgar Rivera,2026-08-14,"Two boat-only OOD rows make the proposed TEST composition too narrow."
+pilot-b1-wc-1734232,TRAIN,TEST,PROPOSE_FOR_TEST,Codex representativeness review,2026-08-14,"Caught/held Dorado on a boat better represents PescaPR submissions."
+pilot-b1-wc-107176216,TRAIN,TEST,PROPOSE_FOR_TEST,Codex representativeness review,2026-08-14,"Adult Alectis from an independent natural-underwater source adds a second species."
+pilot-ood-b1-wc-12104762,VALIDATION,TEST,PROPOSE_FOR_TEST,Codex representativeness review,2026-08-14,"Independent natural-underwater nurse shark provides fish-like OOD coverage."
+pilot-ood-b1-wc-92100670,VALIDATION,TEST,PROPOSE_FOR_TEST,Codex representativeness review,2026-08-14,"Puerto Rico beach/water scene provides locally relevant non-fish OOD coverage."

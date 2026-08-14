@@ -56,6 +56,145 @@ Master to-do list for transitioning PescaPR to a robust freemium model with adva
 - v2.3.5 [x] Configure a remote fetch mechanism (e.g., Firebase Cloud Storage) for GeoJSON
   files to enable over-the-air structure updates without requiring Play Store app releases.
 
+## Priority Prerequisite Before Module 6
+### Fish Identifier Modernization — Zero-Cost On-Device Recognition
+
+This track intentionally interrupts the normal version roadmap and must be completed before
+proceeding with the next major planned PescaPR feature. Guía Oficial remains the authoritative
+species catalog. The target flow is: photo → deterministic local preprocessing → bundled
+on-device classifier → ranked canonical `FichaPez.id` candidates → `OfficialGuideRepository`
+→ authoritative Guía Oficial record → existing/reused guide-detail UI.
+
+#### Phase A — Dataset & Classifier Contract Foundation — NEXT
+- FI-A.1 [x] Freeze the supported classifier catalog around the existing 39 Guía Oficial species.
+- FI-A.2 [x] Use `FichaPez.id` as the canonical classifier label instead of common-name strings.
+- FI-A.3 [x] Design a versioned classifier manifest containing the model version, input
+  specification, ordered classifier labels, and output-index-to-`FichaPez.id` mapping.
+- FI-A.4 [x] Audit the quality, correctness, licensing, and provenance of current Guía Oficial
+  reference images.
+- FI-A.5 [x] Define labeled training-data requirements per species and identify appropriately
+  licensed external training-image sources.
+- FI-A.6 [x] Enforce and measure the documented realistic field/catch-photo variation
+  requirements during acquisition planning, including different angles, lighting,
+  backgrounds, fish sizes, handling conditions, partial fish where appropriate, and
+  juvenile/adult variation where relevant; produce a per-species coverage checklist and gap
+  report before accepting the dataset for training.
+- FI-A.7 [x] Apply the documented group-aware train, validation, and test partition strategy to
+  the acquired dataset and verify leakage and duplicate-image controls.
+  - FI-A.7-FRAMEWORK [x] Establish the repository-local image metadata contract, deterministic
+    partitioning policy, grouping hierarchy, exact/perceptual duplicate controls, leakage
+    validator, synthetic fixtures, and locked-test/snapshot versioning rules. Subsequent pilot
+    execution applied and verified the framework against 22 approved real images.
+  - FI-A.7-PILOT [ ] Execute the documented five-species, 125-positive/50-OOD rights-cleared
+    pilot through discovery, rights/label approval, ingestion, hashing, grouping, deterministic
+    partition proposal, locked-test review, and leakage validation. FI-A.7 completes only after
+    the real pilot snapshot has no unresolved validation errors.
+    - FI-A.7-PILOT-GOVERNANCE [x] Prepare provisional contributor-permission language, the
+      rights-review SOP and role gates, controlled external binary-workspace policy, narrow Git
+      protections, and the candidate-review decision schema. Legal approval remains required;
+      no images have been acquired.
+    - FI-A.7-PILOT-DISCOVERY [x] Complete the first metadata-only discovery pass against approved
+      source families: 58 genuine candidate records across the five pilot species, all pending
+      item-level rights and visual label review. No image binaries were downloaded or ingested.
+    - FI-A.7-PILOT-ADJUDICATION [x] Complete the first item-level rights and visual/metadata label
+      review of all 58 discovery candidates plus three narrow Alectis additions. Independent
+      approval and HIGH/VERY_HIGH second/expert reviews remain open; zero candidates are currently
+      approved for acquisition and no image binaries were retained or ingested.
+    - FI-A.7-PILOT-BATCH1-APPROVAL [x] Edgar Rivera independently approved all eight packet
+      candidates (five Coryphaena, three clear adult Alectis) on 2026-08-14; the decisions and
+      `APPROVED_FOR_ACQUISITION` state are recorded in the candidate queue.
+    - FI-A.7-PILOT-BATCH1-INGESTION [x] Acquire exactly the eight approved originals into the
+      external controlled workspace; record SHA-256 and 64-bit pHash, real grouping metadata and
+      deterministic partition proposals; and validate eight metadata rows with zero errors. The
+      broader pilot, OOD, expert reviews, locked-test review, and snapshot validation remain open.
+    - FI-A.7-PILOT-OOD-BATCH1-APPROVAL [x] Edgar Rivera independently approved category and
+      acquisition decisions for all 14 packet candidates on 2026-08-14; the authoritative queue
+      records the decisions without assigning any OOD sample to a frozen classifier class.
+    - FI-A.7-PILOT-OOD-INGESTION [x] Acquire all 14 approved OOD originals into the external
+      workspace, record real hashes and correlated groups, and validate the combined 8-positive /
+      14-OOD metadata with zero errors. Locked-test review/versioning, snapshot validation,
+      broader pilot targets, warning dispositions, and required expert reviews remain open.
+    - FI-A.7-PILOT-SNAPSHOT-FRAMEWORK [x] Add locked-test approval records, explicit warning
+      dispositions, grouping review, and deterministic create/verify tooling with synthetic tests.
+      Real snapshot creation fails closed while TEST approval or lock state is incomplete.
+    - FI-A.7-PILOT-TESTSET-APPROVAL [x] Edgar Rivera independently approved the four revised
+      `testset-v1` rows on 2026-08-14 after the first unrepresentative composition was reassigned.
+      Exactly those four rows are locked; the historical decisions and overrides remain preserved.
+    - FI-A.7-PILOT-SNAPSHOT-V1 [x] Create and verify immutable `pilot-snapshot-v1` for 22 real
+      rows (8 positive / 14 OOD; TRAIN 13 / VALIDATION 5 / TEST 4), including checksummed
+      `testset-v1`, warning dispositions, partition overrides, and sanitized repository manifests.
+      FI-A.7 is complete with zero unresolved structural errors. The broader pilot remains open.
+- FI-A.8 [ ] Build and validate the documented hybrid unsupported-fish/non-fish rejection
+  strategy, including an OOD corpus and evidence-based confidence/margin thresholds; require a
+  new catalog/model version if evaluation justifies an explicit unknown/other output class.
+  - FI-A.8-FRAMEWORK [x] Define typed accept/ambiguous/reject/invalid states, model-agnostic score
+    inputs, supported/OOD and confusion-slice metrics, calibration and locked-test discipline,
+    versioned evaluation templates, and dependency-free threshold-sweep tooling with synthetic
+    tests. No numeric production threshold is selected. FI-A.8 remains open until a trained model
+    produces validation/OOD predictions, a policy is empirically selected, and a frozen locked-test
+    checkpoint is evaluated.
+- FI-A.9 [ ] Define accuracy targets and evaluation criteria before Android model integration.
+- FI-A.10 [ ] Treat the current approximately 124 reference-image URLs (about 1–5 per species)
+  only as reference/seed material; they are not sufficient by themselves, and a substantially
+  larger labeled dataset will almost certainly be required for a robust field-photo classifier.
+
+#### Phase B — Model Training & Validation — PLANNED
+- FI-B.1 [ ] Evaluate and select an appropriate lightweight mobile image-classification
+  architecture without prematurely binding the roadmap to one architecture.
+- FI-B.2 [ ] Train or fine-tune the selected architecture using the approved labeled dataset.
+- FI-B.3 [ ] Export the validated model to an Android-compatible local inference format,
+  expected to be TensorFlow Lite/LiteRT unless evaluation identifies a better fit.
+- FI-B.4 [ ] Validate per-class accuracy, with focused confusion analysis for visually similar
+  snappers, groupers, amberjacks, mackerels, barracudas, and boxfish.
+- FI-B.5 [ ] Evaluate top-1 and top-3 performance.
+- FI-B.6 [ ] Establish and test a low-confidence/unknown threshold policy.
+- FI-B.7 [ ] Measure model size, inference latency, and memory use on target Android devices.
+
+#### Phase C — Android On-Device Identifier Integration — PLANNED
+- FI-C.1 [ ] Add the selected local inference runtime, bundled classifier/model asset, and
+  versioned label manifest.
+- FI-C.2 [ ] Implement deterministic preprocessing: EXIF correction, resizing,
+  crop/letterbox behavior, normalization, and model-specific tensor preparation.
+- FI-C.3 [ ] Add a dedicated `FishClassifier` abstraction and Identifier ViewModel/state owner.
+- FI-C.4 [ ] Return typed ranked results containing `FichaPez.id` and classifier score.
+- FI-C.5 [ ] Resolve names, regulations, characteristics, aliases, and photos exclusively from
+  Guía Oficial rather than from model-generated content.
+- FI-C.6 [ ] Use `OfficialGuideRepository` as the shared catalog source and support the bundled,
+  offline Guía Oficial fallback.
+- FI-C.7 [ ] Show the top candidate plus alternatives when appropriate, support a
+  low-confidence/unknown result, and allow manual correction or species selection.
+- FI-C.8 [ ] Reuse or extract the existing Guía Oficial fish-detail UI for identified records.
+- FI-C.9 [ ] Ensure identification works offline except for remote guide photos that have not
+  already been cached or bundled.
+
+#### Phase D — Migrate All Fish-Identification Call Sites — PLANNED
+- FI-D.1 [ ] Migrate the standalone Fish Identifier to the shared on-device classifier and
+  canonical catalog mapping.
+- FI-D.2 [ ] Migrate catch-registration identification in `MapaPescapr.kt` to the same classifier
+  and catalog mapping logic.
+- FI-D.3 [ ] Replace brittle common-name equality matching with canonical `FichaPez.id` in both
+  flows.
+
+#### Phase E — Remove Gemini From Fish Identification — PLANNED
+- FI-E.1 [ ] After local identification is validated, remove Gemini calls from
+  `IdentificadorScreen.kt` and from the catch-registration fish-matching flow.
+- FI-E.2 [ ] Remove fish-identification dependence on the Gemini API key and eliminate
+  quota/spending and connectivity failure modes from fish identification.
+- FI-E.3 [ ] Verify that no fish-identification behavior requires connectivity.
+- FI-E.4 [ ] Do not globally remove the Gemini SDK or API key until the independent AI Pattern
+  Insights feature in `RecordsScreen.kt` has been explicitly evaluated and either retained
+  securely, redesigned locally, replaced, or removed.
+
+### Near-Term Production Security — Signing Artifacts Audit
+- SEC-SIGN.1 [ ] Verify whether the release AAB and signing keystore are tracked by Git and
+  assess their intended repository status.
+- SEC-SIGN.2 [ ] Audit Git history for release-binary and signing-key exposure.
+- SEC-SIGN.3 [ ] Review `.gitignore`, local signing configuration, secret storage, and access
+  controls for release signing material.
+- SEC-SIGN.4 [ ] Confirm Play App Signing configuration and custody of upload/app-signing keys.
+- SEC-SIGN.5 [ ] Determine whether key rotation or other remediation is necessary; perform no
+  remediation until the audit and recovery plan are approved.
+
 ## Version 2.4
 ## Module 6: Bilingual Localization (English & Spanish)
 - v2.4.0 [ ] Create the `values-es` resource directory for Spanish localization.
@@ -110,6 +249,9 @@ The morphology dataset is a continuously evolving PescaPR data asset and is not 
 - ASO.4 [ ] Add engaging, descriptive captions to all Play Store images.
 
 ---
-**Current Status:** Module 5 complete (v2.3.0 through v2.3.5 done).
+**Current Status:** Module 5 complete (v2.3.0 through v2.3.5 done). Fish Identifier
+Modernization FI-A.7 is complete with locked `testset-v1` and verified `pilot-snapshot-v1`.
+FI-A.8-FRAMEWORK is complete, while empirical FI-A.8 and the broader FI-A.7-PILOT acquisition /
+specialist-review track remain open prerequisites before Module 6.
 
  

@@ -1,0 +1,5 @@
+internalImageId,sampleType,trueFichaPezId,oodCategory,top1FichaPezId,top1Score,top2FichaPezId,top2Score,top3FichaPezId,top3Score,scoreMargin,entropy,decisionState,acceptedFichaPezId,correctTop1,correctTop3,falseAccept,falseReject,notes
+synthetic-positive-correct,POSITIVE,0SCZ4miCcNiVY684bCwg,,0SCZ4miCcNiVY684bCwg,0.90,0hjc5oWRBLg9dyujatSy,0.40,1s69lkvuYEYoQkL6esVp,0.10,0.50,,ACCEPTED,0SCZ4miCcNiVY684bCwg,,,,,synthetic only
+synthetic-positive-ambiguous,POSITIVE,0hjc5oWRBLg9dyujatSy,,0SCZ4miCcNiVY684bCwg,0.55,0hjc5oWRBLg9dyujatSy,0.50,1s69lkvuYEYoQkL6esVp,0.20,0.05,,AMBIGUOUS,,,,,,synthetic only
+synthetic-ood-false-accept,OOD,,unsupported_fish,0SCZ4miCcNiVY684bCwg,0.70,0hjc5oWRBLg9dyujatSy,0.30,1s69lkvuYEYoQkL6esVp,0.10,0.40,,ACCEPTED,0SCZ4miCcNiVY684bCwg,,,,,synthetic only
+synthetic-ood-rejected,OOD,,boat,1s69lkvuYEYoQkL6esVp,0.20,0hjc5oWRBLg9dyujatSy,0.19,0SCZ4miCcNiVY684bCwg,0.10,0.01,,REJECTED_OOD,,,,,,synthetic only

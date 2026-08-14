@@ -1,0 +1,6 @@
+fichaPezId,scientificName,commonName,confusionRisk,sourcingDifficulty,sourceAvailability,positiveTarget,whySelected
+AYGYpLjkS9LEv7AXVAuk,Coryphaena hippurus,Dorado,LOW,LOW,PROMISING,25,"Distinctive LOW-risk field species; exercises ordinary catch-photo ingestion and color/sex variation"
+5SkWhUQgG6JuanpfSLUT,Alectis ciliaris,Corcobado,MEDIUM,MEDIUM,UNKNOWN,25,"MEDIUM-risk jack with strong juvenile/adult change; tests life-stage metadata and label review"
+V39KoLAZkg0MBjiWaa46,Scomberomorus cavalla,Carite,HIGH,LOW,PROMISING,25,"HIGH-risk mackerel-family class; tests hard examples against cero and wahoo without choosing a rare species"
+u1JpMvcENOy98cd31Za5,Seriola dumerili,Medregal,HIGH,LOW,PROMISING,25,"HIGH-risk amberjack; tests paired-family review against Seriola rivoliana and common field imagery"
+ejX0Cx9YYxsmOQTJb8kK,Sphyraena barracuda,Picúa,VERY_HIGH,LOW,PROMISING,25,"VERY_HIGH-risk barracuda-family class; exercises enhanced review while remaining more obtainable than the smaller Sphyraena classes"
