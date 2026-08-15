@@ -198,6 +198,10 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
       direct permission for at least three already-recorded independent *Haemulon plumieri* groups,
       followed by rights/label/quality/grouping approval. No new discovery, outreach, acquisition,
       or contributor collection was initiated; the 10-group gate remains unchanged.
+    - FI-MICRO-POC.2-DIRECT-PERMISSION-PACKAGE [x] Prepare a provisional case-by-case permission
+      scope, evidence checklist, matrix, and outreach template for legal/product review. No rights
+      holder was contacted, no permission was obtained, no candidate rights state changed, and
+      FI-CONTRIB.1 remains blocking.
 - FI-MICRO-POC.3 [ ] Train the first small transfer-learning model, export a mobile-compatible
   artifact, verify canonical-ID output mapping, and emit real validation/development-OOD
   predictions into FI-A.8 tooling. Treat results strictly as architecture evidence, not production
