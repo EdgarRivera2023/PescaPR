@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">PescaPR</string>
+    <string name="app_name_pro">PescaPR Pro</string>
+    <string name="plan_pro_active">Plan Pro Activo</string>
+    <string name="plan_free">Plan Gratuito</string>
+    <string name="nav_map">Mapa</string>
+    <string name="nav_identifier">Identificador y Regulaciones</string>
+    <string name="nav_official_guide">Guía Oficial</string>
+    <string name="nav_records">Diario Privado / Records</string>
+    <string name="nav_admin">Admin</string>
+    <string name="action_about">Acerca de PescaPR</string>
+    <string name="content_desc_about">Acerca de</string>
+    <string name="content_desc_app_logo">PescaPR Logo</string>
+    <string name="content_desc_main_menu">Menú Principal</string>
+    <string name="debug_pro_tier_set">Debug: Pro Tier set to %1$s</string>
 </resources>

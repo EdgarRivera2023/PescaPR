@@ -20,7 +20,7 @@ work should be grouped by screen rather than performed as an unreviewed global r
 
 | Area | Representative files | Remaining work |
 |---|---|---|
-| App shell/navigation | `MainActivity.kt` | Drawer labels, plan labels, about/menu labels, toolbar and icon descriptions. |
+| App shell/navigation | `MainActivity.kt` | **Batch 1 extracted:** drawer labels, plan labels, About/menu labels, toolbar and shell icon descriptions now use default English resources. |
 | Map/spots/community | `MapaPescapr.kt`, map-related components | Spot/community labels, offline/error toasts, photo-review messages, dialogs, units and dynamic interpolation. |
 | Fish Identifier | `ui/identificador/IdentificadorScreen.kt` and related code | User instructions, states, errors, action labels, accessibility text; classifier IDs and scores must remain data. |
 | Guía Oficial | `ui/guia/GuiaOficialScreen.kt` | Admin actions, editing/photo-review labels, dialogs and accessibility text. Species names, aliases, regulations and descriptive fields remain domain data. |
@@ -30,9 +30,16 @@ work should be grouped by screen rather than performed as an unreviewed global r
 | Coastal morphology and cards | `CoastalMorphology*`, `ProSwellCard.kt`, `WaterTempCard.kt`, `TideGauge.kt` | Labels, units, explanations, warnings, content descriptions and formatted values. |
 | Shared/error/reporting | `BugReportLogger.kt` and UI call sites | User-facing errors and messages must be separated from log/internal text. |
 
-This is a component-level inventory, not an exhaustive occurrence list. v2.4.1 should enumerate
-resource keys while preserving existing wording; v2.4.2 should translate the corresponding Spanish
-keys; v2.4.3 should migrate Compose callers to `stringResource()` or formatted/plural resources.
+This is a component-level inventory, not an exhaustive occurrence list. v2.4.1 still has feature
+batches remaining after the app-shell batch; v2.4.2 should translate the corresponding Spanish keys;
+v2.4.3 should migrate remaining Compose callers to `stringResource()` or formatted/plural resources.
+
+### v2.4.1 Batch 1 resource keys
+
+`app_name_pro`, `plan_pro_active`, `plan_free`, `nav_map`, `nav_identifier`, `nav_official_guide`,
+`nav_records`, `nav_admin`, `action_about`, `content_desc_about`, `content_desc_app_logo`,
+`content_desc_main_menu`, and formatted `debug_pro_tier_set` were extracted from `MainActivity.kt`.
+The Spanish file remains intentionally empty until v2.4.2.
 
 ## Static UI versus dynamic data
 
@@ -77,4 +84,3 @@ be localized, while remote text should not be silently treated as a translatable
 `values-es` is the standard Android Spanish locale for this foundation. Per-app language configuration,
 `generateLocaleConfig`, a language selector, automatic language switching, and regional `es-rPR`
 variants are intentionally deferred to v2.4.4 or a separately documented decision.
-

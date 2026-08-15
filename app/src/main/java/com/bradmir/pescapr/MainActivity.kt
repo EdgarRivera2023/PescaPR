@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -173,7 +174,7 @@ fun MainTabsScreen(database: AppDatabase) {
                                     if (BuildConfig.DEBUG) {
                                         Toast.makeText(
                                             context,
-                                            "Debug: Pro Tier set to ${subscriptionManager.isProUser.value}",
+                                            context.getString(R.string.debug_pro_tier_set, subscriptionManager.isProUser.value),
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -184,12 +185,12 @@ fun MainTabsScreen(database: AppDatabase) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "PescaPR Pro",
+                            text = stringResource(R.string.app_name_pro),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (isUserPro) "Plan Pro Activo" else "Plan Gratuito",
+                            text = stringResource(if (isUserPro) R.string.plan_pro_active else R.string.plan_free),
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isUserPro) MaterialTheme.colorScheme.primary else Color.Gray
                         )
@@ -200,7 +201,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Map, contentDescription = null) },
-                    label = { Text("Mapa") },
+                    label = { Text(stringResource(R.string.nav_map)) },
                     selected = currentScreen == 0,
                     onClick = {
                         currentScreen = 0
@@ -211,7 +212,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    label = { Text("Identificador y Regulaciones") },
+                    label = { Text(stringResource(R.string.nav_identifier)) },
                     selected = currentScreen == 1,
                     onClick = {
                         currentScreen = 1
@@ -222,7 +223,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Book, contentDescription = null) },
-                    label = { Text("Guía Oficial") },
+                    label = { Text(stringResource(R.string.nav_official_guide)) },
                     selected = currentScreen == 2,
                     onClick = {
                         currentScreen = 2
@@ -233,7 +234,7 @@ fun MainTabsScreen(database: AppDatabase) {
 
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.List, contentDescription = null) },
-                    label = { Text("Diario Privado / Records") },
+                    label = { Text(stringResource(R.string.nav_records)) },
                     selected = currentScreen == 3,
                     onClick = {
                         currentScreen = 3
@@ -245,7 +246,7 @@ fun MainTabsScreen(database: AppDatabase) {
                 if (BuildConfig.DEBUG && esDeveloper) {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null) },
-                        label = { Text("Admin") },
+                        label = { Text(stringResource(R.string.nav_admin)) },
                         selected = currentScreen == 4,
                         onClick = {
                             currentScreen = 4
@@ -259,8 +260,8 @@ fun MainTabsScreen(database: AppDatabase) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Info, contentDescription = "Acerca de") },
-                    label = { Text("Acerca de PescaPR") },
+                    icon = { Icon(Icons.Default.Info, contentDescription = stringResource(R.string.content_desc_about)) },
+                    label = { Text(stringResource(R.string.action_about)) },
                     selected = mostrarDialogoAcercaDe,
                     onClick = {
                         coroutineScope.launch { drawerState.close() }
@@ -276,7 +277,7 @@ fun MainTabsScreen(database: AppDatabase) {
             topBar = {
                 TopAppBar(
                     title = {
-                        val brandName = if (isUserPro) "PescaPR Pro" else "PescaPR"
+                        val brandName = stringResource(if (isUserPro) R.string.app_name_pro else R.string.app_name)
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -284,7 +285,7 @@ fun MainTabsScreen(database: AppDatabase) {
                         ) {
                             Image(
                                 painter = painterResource(id = R.drawable.logo_small),
-                                contentDescription = "PescaPR Logo",
+                                contentDescription = stringResource(R.string.content_desc_app_logo),
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
@@ -295,7 +296,7 @@ fun MainTabsScreen(database: AppDatabase) {
                                                 if (BuildConfig.DEBUG) {
                                                     Toast.makeText(
                                                         context,
-                                                        "Debug: Pro Tier set to ${subscriptionManager.isProUser.value}",
+                                                        context.getString(R.string.debug_pro_tier_set, subscriptionManager.isProUser.value),
                                                         Toast.LENGTH_SHORT
                                                     ).show()
                                                 }
@@ -315,7 +316,7 @@ fun MainTabsScreen(database: AppDatabase) {
                     },
                     navigationIcon = {
                         IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menú Principal")
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.content_desc_main_menu))
                         }
                     }
                 )
