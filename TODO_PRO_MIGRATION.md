@@ -266,6 +266,10 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
   remains a reproducibility baseline. The decision is provisional and requires future FI-A.9 evidence,
   export, quantization, and multi-device measurements; no model, runtime, or threshold was selected.
 - FI-B.2 [ ] Train or fine-tune the selected architecture using the approved labeled dataset.
+  - FI-B.2-FRAMEWORK [x] Define and validate the dependency-free versioned training configuration,
+    frozen 39-class output-order binding, TRAIN/VALIDATION-only input contract, transfer-learning
+    stages, augmentation policy, provenance fields, and FI-A.8 prediction handoff. No real data,
+    weights, framework, checkpoint, or model was used; FI-B.2 remains blocked by dataset adequacy.
 - FI-B.3 [ ] Export the validated model to an Android-compatible local inference format,
   expected to be TensorFlow Lite/LiteRT unless evaluation identifies a better fit.
 - FI-B.4 [ ] Validate per-class accuracy, with focused confusion analysis for visually similar
