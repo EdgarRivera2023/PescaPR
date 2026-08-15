@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -240,7 +241,8 @@ fun MapaPescapr(
     var datosClima by remember { mutableStateOf<WeatherResponse?>(null) }
     var cargandoClima by remember { mutableStateOf(false) }
     var tideFactor by remember { mutableFloatStateOf(0.5f) }
-    var tideDescription by remember { mutableStateOf("Cargando...") }
+    val spotLoadingText = stringResource(R.string.spot_loading)
+    var tideDescription by remember { mutableStateOf(spotLoadingText) }
     var nextTideTime by remember { mutableStateOf("") }
 
     LaunchedEffect(mostrarDialogoCaptura) {
@@ -304,7 +306,7 @@ fun MapaPescapr(
 
                 if (targetFirestoreId.isBlank()) {
                     subiendoFotoSpot = false
-                    Toast.makeText(context, "No se pudo vincular el spot con la comunidad en Firestore.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.spot_community_link_error), Toast.LENGTH_LONG).show()
                     return@launch
                 }
 
@@ -317,13 +319,13 @@ fun MapaPescapr(
                 subiendoFotoSpot = false
                 result.fold(
                     onSuccess = {
-                        Toast.makeText(context, "Foto propuesta enviada a revisión", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.spot_photo_submitted), Toast.LENGTH_SHORT).show()
                         coroutineScope.launch {
                             userPendingSubmission = spotPhotoRepository.getUserPendingSubmissionForSpot(targetFirestoreId, currentUid)
                         }
                     },
                     onFailure = { error ->
-                        Toast.makeText(context, "Error al enviar propuesta: ${error.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.spot_photo_submit_error, error.message ?: ""), Toast.LENGTH_LONG).show()
                     }
                 )
             }
@@ -594,7 +596,7 @@ fun MapaPescapr(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Modo Off-line - Mostrando puntos guardados localmente",
+                        text = stringResource(R.string.map_offline_saved_spots),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -646,7 +648,7 @@ fun MapaPescapr(
         Marker(
           state = markerState,
           title = spot.nombre,
-          snippet = spot.descripcion.ifBlank { "Toca para ver detalles" },
+          snippet = spot.descripcion.ifBlank { context.getString(R.string.map_marker_details_hint) },
           onClick = {
             selectedMorphologyFeature = null
             false
@@ -690,7 +692,7 @@ fun MapaPescapr(
                     color = if (!verPinesComunidad) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
                 ) {
                     Text(
-                        text = "Mis Spots",
+                        text = stringResource(R.string.map_my_spots),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (!verPinesComunidad) FontWeight.Bold else FontWeight.Normal,
@@ -714,7 +716,7 @@ fun MapaPescapr(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Comunidad",
+                            text = stringResource(R.string.map_community),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (verPinesComunidad) FontWeight.Bold else FontWeight.Normal,
                             color = if (verPinesComunidad) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
@@ -723,7 +725,7 @@ fun MapaPescapr(
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.Lock,
-                                contentDescription = "Pro",
+                                contentDescription = stringResource(R.string.content_desc_pro_badge),
                                 modifier = Modifier.size(14.dp),
                                 tint = if (verPinesComunidad) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -752,7 +754,7 @@ fun MapaPescapr(
             ) {
                 Icon(
                     imageVector = Icons.Default.Layers,
-                    contentDescription = "Morfología Costera",
+                    contentDescription = stringResource(R.string.content_desc_coastal_morphology),
                     tint = if (showMorphologyLayer) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
@@ -764,19 +766,19 @@ fun MapaPescapr(
     if (mostrarDialogoNuevoPunto && nuevaCoordenada != null) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoNuevoPunto = false },
-            title = { Text("Nuevo Spot de Pesca") },
+            title = { Text(stringResource(R.string.spot_new_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = nombreNuevoPunto,
                         onValueChange = { nombreNuevoPunto = it },
-                        label = { Text("Nombre del Spot") },
+                        label = { Text(stringResource(R.string.spot_name_label)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = descripcionNuevoPunto,
                         onValueChange = { descripcionNuevoPunto = it },
-                        label = { Text("Notas / Descripción") },
+                        label = { Text(stringResource(R.string.spot_notes_label)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -822,12 +824,12 @@ fun MapaPescapr(
 
                                 withContext(Dispatchers.Main) {
                                     misPuntos.add(nuevo)
-                                    Toast.makeText(context, "Spot guardado localmente", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.spot_saved_locally), Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: Exception) {
                                 e.printStackTrace()
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, "Error al guardar: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, context.getString(R.string.spot_save_error, e.message ?: ""), Toast.LENGTH_LONG).show()
                                 }
                             } finally {
                                 withContext(Dispatchers.Main) {
@@ -841,11 +843,11 @@ fun MapaPescapr(
                 enabled = !guardandoPunto && nombreNuevoPunto.isNotBlank()
             ) {
                 if (guardandoPunto) CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                else Text("Guardar Spot")
+                else Text(stringResource(R.string.spot_save))
             }
         },
             dismissButton = {
-                TextButton(onClick = { mostrarDialogoNuevoPunto = false }) { Text("Cancelar") }
+                TextButton(onClick = { mostrarDialogoNuevoPunto = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -864,7 +866,7 @@ fun MapaPescapr(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = spotActual?.nombre ?: "Spot de Pesca",
+                    text = spotActual?.nombre ?: stringResource(R.string.spot_default_name),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -889,7 +891,7 @@ fun MapaPescapr(
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Cargando clima y mareas...", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.spot_weather_loading), style = MaterialTheme.typography.bodySmall)
                     }
                 } else if (datosClima != null) {
                     val clima = datosClima!!
@@ -897,7 +899,7 @@ fun MapaPescapr(
                     val pressureFormatted = String.format(Locale.US, "%.2f", pressureInHg)
 
                     Text(
-                        text = "Signos Vitales del Spot",
+                        text = stringResource(R.string.spot_vitals_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -920,17 +922,17 @@ fun MapaPescapr(
                             WeatherInfoItem(
                                 icon = Icons.Default.Thermostat,
                                 value = "${clima.main.temp.toInt()}°F",
-                                label = "Temperatura"
+                                label = stringResource(R.string.spot_temperature)
                             )
                             WeatherInfoItem(
                                 icon = Icons.Default.Air,
                                 value = "${clima.wind.speed.toInt()} mph",
-                                label = "Viento"
+                                label = stringResource(R.string.spot_wind)
                             )
                             WeatherInfoItem(
                                 icon = Icons.Default.Speed,
                                 value = "$pressureFormatted inHg",
-                                label = "Presión"
+                                label = stringResource(R.string.spot_pressure)
                             )
                         }
 
@@ -942,14 +944,14 @@ fun MapaPescapr(
                                 modifier = Modifier
                                     .clip(CircleShape)
                                     .clickable {
-                                        Toast.makeText(context, "Actualizando condiciones...", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.spot_conditions_refreshing), Toast.LENGTH_SHORT).show()
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 RelojMareasCircular(valor = tideFactor, nextTime = nextTideTime)
                             }
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("MAREA", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.spot_tide), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             Text(tideDescription, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                         }
                     }
@@ -1067,13 +1069,13 @@ fun MapaPescapr(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Fotos del Spot (${fotos.size}/4)",
+                            text = stringResource(R.string.spot_photos_count, fotos.size),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         if (userPendingSubmission != null) {
                             Text(
-                                text = "Tu foto está en revisión. Una vez aprobada, se verá aquí.",
+                                text = stringResource(R.string.spot_photo_pending_review),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.tertiary,
                                 softWrap = true
@@ -1093,11 +1095,11 @@ fun MapaPescapr(
                                         val result = spotPhotoRepository.withdrawPendingSubmission(userPendingSubmission!!)
                                         result.fold(
                                             onSuccess = {
-                                                Toast.makeText(context, "Propuesta retirada", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, context.getString(R.string.spot_photo_withdrawn), Toast.LENGTH_SHORT).show()
                                                 userPendingSubmission = null
                                             },
                                             onFailure = { err ->
-                                                Toast.makeText(context, "Error al cancelar propuesta: ${err.message}", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, context.getString(R.string.spot_photo_withdraw_error, err.message ?: ""), Toast.LENGTH_LONG).show()
                                             }
                                         )
                                     }
@@ -1106,7 +1108,7 @@ fun MapaPescapr(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = "Cancelar",
+                                    text = stringResource(R.string.action_cancel),
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
                                     softWrap = false
@@ -1118,7 +1120,7 @@ fun MapaPescapr(
                             ) {
                                 Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Proponer Foto", style = MaterialTheme.typography.labelMedium)
+                                Text(stringResource(R.string.spot_photo_propose), style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }

@@ -339,8 +339,11 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
   `docs/localization_inventory.md`. No strings were translated or migrated.
 - v2.4.1 [ ] Extract all hardcoded UI text into the default `res/values/strings.xml` (English).
   - v2.4.1-BATCH1 [x] Extract app-shell and primary navigation labels, plan labels, About/menu
-    labels, shell accessibility descriptions, and the developer Pro debug message from
-    `MainActivity.kt`. Feature-specific screens remain for later batches.
+      labels, shell accessibility descriptions, and the developer Pro debug message from
+      `MainActivity.kt`. Feature-specific screens remain for later batches.
+  - v2.4.1-BATCH2 [x] Extract map and fishing-spot shell, detail, and photo-flow strings into
+      default English resources. Catch-record, morphology-detail, and standalone environmental
+      card strings remain for later batches.
 - v2.4.2 [ ] Populate `res/values-es/strings.xml` with the corresponding Spanish translations.
 - v2.4.3 [ ] Refactor MainActivity and Jetpack Compose screens to utilize `stringResource()`.
 - v2.4.4 [ ] Enable `generateLocaleConfig = true` in `build.gradle.kts` for Android 13+ per-app language support.

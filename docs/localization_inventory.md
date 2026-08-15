@@ -5,7 +5,7 @@
 
 ## Current resource structure
 
-- `app/src/main/res/values/strings.xml` currently contains only the existing `app_name` resource.
+- `app/src/main/res/values/strings.xml` contains the default application strings extracted so far.
 - No localized `values-*` directory existed before this slice.
 - `app/src/main/res/values-es/strings.xml` now exists as a valid empty Spanish resource container.
 - Gradle currently has no `generateLocaleConfig`, `resConfigs`, or per-app language configuration.
@@ -21,7 +21,7 @@ work should be grouped by screen rather than performed as an unreviewed global r
 | Area | Representative files | Remaining work |
 |---|---|---|
 | App shell/navigation | `MainActivity.kt` | **Batch 1 extracted:** drawer labels, plan labels, About/menu labels, toolbar and shell icon descriptions now use default English resources. |
-| Map/spots/community | `MapaPescapr.kt`, map-related components | Spot/community labels, offline/error toasts, photo-review messages, dialogs, units and dynamic interpolation. |
+| Map/spots/community | `MapaPescapr.kt`, map-related components | **Batch 2 extracted:** map offline/marker messaging, spot/community labels, new-spot dialog labels/actions, spot weather/vitals labels, and spot-photo review/proposal messages. Capture/Records flows, morphology detail metadata, and standalone environment cards remain deferred. |
 | Fish Identifier | `ui/identificador/IdentificadorScreen.kt` and related code | User instructions, states, errors, action labels, accessibility text; classifier IDs and scores must remain data. |
 | Guía Oficial | `ui/guia/GuiaOficialScreen.kt` | Admin actions, editing/photo-review labels, dialogs and accessibility text. Species names, aliases, regulations and descriptive fields remain domain data. |
 | Private Journal/records | `ui/records/RecordsScreen.kt` and related UI | Section labels, empty states, controls, validation/errors. |
@@ -40,6 +40,13 @@ v2.4.3 should migrate remaining Compose callers to `stringResource()` or formatt
 `nav_records`, `nav_admin`, `action_about`, `content_desc_about`, `content_desc_app_logo`,
 `content_desc_main_menu`, and formatted `debug_pro_tier_set` were extracted from `MainActivity.kt`.
 The Spanish file remains intentionally empty until v2.4.2.
+
+### v2.4.1 Batch 2 resource keys
+
+Map and fishing-spot shell text in `MapaPescapr.kt` now uses default resources for offline and marker
+messages, community/local spot tabs, new-spot fields/actions, weather/vitals labels, and spot-photo
+submission status/actions. Formatted resources preserve the existing error and photo-count wording.
+No Spanish entries were added.
 
 ## Static UI versus dynamic data
 
@@ -74,6 +81,9 @@ be localized, while remote text should not be silently treated as a translatable
   recorded for later cleanup, not changed in this foundation slice.
 - **Error text:** exception/backend messages may be dynamic and unstable; localize a stable user-facing
   wrapper and retain the raw diagnostic separately where appropriate.
+- **Map/spot deferrals:** catch-record entry/detail text, morphology metadata, and standalone weather,
+  swell, tide, and water-temperature cards remain hardcoded for later feature batches. Dynamic spot
+  names, notes, coordinates, photo URLs, backend payloads, and exception text remain runtime data.
 - **Capitalization and sentence fragments:** Compose labels currently rely on Spanish capitalization
   and concatenated fragments; each future resource should be a complete, translator-reviewable unit.
 - **Billing/legal copy:** subscription wording and cancellation claims require product/legal review in
