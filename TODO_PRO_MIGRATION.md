@@ -234,6 +234,11 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
     verification, current-state moderation, and one-shot optimistic compare-and-replace. Typed
     denial, not-found, moderation, conflict, and invariant results are covered by synthetic tests;
     no retry loop, infrastructure, persistence, Firebase, UI, upload, or runtime entry point exists.
+  - FI-CONTRIB.2-CANDIDATE-PLANNING [x] Add composed current-eligibility evaluation with typed
+    reasons and deterministic in-memory snapshot-plan values retaining opaque contribution/asset
+    IDs, canonical label, evaluated revision, and content identity. Current withdrawal/exclusion
+    blocks future planning; no real snapshot, partition assignment, export, persistence, image I/O,
+    model training, production consent, or operational collection path exists.
 - FI-CONTRIB.3 [ ] Design and implement isolated backend/Storage/Firestore architecture and security
   rules for quarantined originals, private consent evidence, sanitized training derivatives, and
   separately permissioned public-display copies; complete security/privacy testing before uploads.

@@ -212,12 +212,44 @@ The service assumes a future store will implement atomic compare-and-replace as 
 adapter, transaction, lock, retry loop, persistence, Firebase integration, network, UI, or runtime
 entry point, so it does not create an operational collection path.
 
+## Dataset-candidate eligibility and snapshot planning
+
+`DatasetCandidateEligibilityEvaluator` evaluates only whether an already-reviewed contribution is
+currently suitable for future dataset planning. It composes the existing submission, training-
+asset, canonical-label, review, withdrawal/exclusion, and historical consent-version rules, then
+adds the controlled sanitized-asset availability and identity checks needed at the application
+boundary. Its typed ineligibility reasons remain inspectable; it does not reduce the decision to a
+Boolean.
+
+An eligible `DatasetCandidate` carries only the opaque contribution and sanitized-training-asset
+IDs, approved canonical `FichaPez.id`, evaluated aggregate revision, and content SHA-256. It copies
+no contributor identity or consent prose. ML-training permission is required independently;
+public-display and marketing grants are neither required nor inferred.
+
+A retired consent version remains historically valid when its recorded acceptance occurred after
+approval/effectiveness and before retirement. The evaluator never requires historical consent to
+remain selectable today. Production still has no approved/selectable consent fixture; approved and
+retired examples exist only as synthetic test data.
+
+`DatasetSnapshotPlanner` accepts evaluated results and creates deterministic immutable value data
+only. It includes eligible candidates, retains typed exclusions, sorts membership by opaque stable
+identifiers, and rejects invalid candidates, duplicate contribution candidates, or one training-
+asset identity claimed by multiple contributions. It uses a caller-supplied plan ID and generates
+no timestamps or random identifiers.
+
+The plan is not `DatasetSnapshotMembership`: no immutable dataset snapshot has been created yet,
+no partition or inclusion event has occurred, and nothing is persisted or exported. Current
+withdrawal or exclusion blocks new planning. Physical deletion, existing immutable snapshots,
+already-trained weights, retroactive untraining, and related retention questions remain unresolved
+legal/privacy policy and are deliberately not modeled here.
+
 ## Remaining dependencies and next slice
 
 Legal/privacy/product decisions remain required for consent wording/version custody, contracting
 entity, minors, withdrawal/deletion, snapshot and trained-model treatment, retention, vendor and
 sublicense scope, public display, marketing, and incident/takedown handling.
 
-FI-CONTRIB.2 now has its backend-neutral domain, moderation, storage/access, authorization, and
-application-orchestration contracts. Any next slice remains blocked from operational collection by
-`FI-CONTRIB.1`; Firebase, persistence, uploads, UI, and production consent artifacts are absent.
+FI-CONTRIB.2 now has its backend-neutral domain, moderation, storage/access, authorization,
+application-orchestration, candidate-eligibility, and in-memory snapshot-planning contracts. Any
+next slice remains blocked from operational collection by `FI-CONTRIB.1`; Firebase, persistence,
+uploads, UI, datasets, model training, and production consent artifacts are absent.
