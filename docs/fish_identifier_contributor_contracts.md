@@ -85,7 +85,7 @@ versions, classifier-manifest checksum, timestamps, and output artifact identity
 Collection remains impossible through this slice because there is:
 
 - no UI or consent screen;
-- no persistent repository, infrastructure adapter, or use case invoking these contracts;
+- no persistent repository, infrastructure adapter, or runtime entry point invoking these contracts;
 - no network, Firebase, Storage, or Firestore adapter;
 - no collection/schema/security-rule change;
 - no object upload or dataset export implementation; and
@@ -185,12 +185,39 @@ independent consent grant. Public-display consent grants neither ML use nor stor
 consent grants neither public-display authority nor quarantine access. Authentication and future
 organizational role assignment remain outside this contract.
 
+## Moderation application service
+
+`ContributionModerationService` is the small backend-neutral coordinator between authorization,
+the aggregate store, and the existing moderation engine. It accepts an opaque principal separately
+from the moderation command and performs this fixed sequence:
+
+`capability authorization → current aggregate load → ownership authorization when required →`
+`moderation → revision-safe replacement`.
+
+Command attribution must match the acting principal. Submission and withdrawal initiation require
+both their own explicit capability and ownership loaded from the stored aggregate. Rights/privacy/
+quality moderation, specialist label decisions, dataset approval, withdrawal completion, and
+administrative exclusion map to separate actions; general moderation is not a universal bypass.
+Consent and rights validation remains inside the moderation/domain rules and is not treated as an
+actor capability.
+
+Authorization denial, unknown contribution, moderation rejection, storage conflict, and storage
+invariant failure are separate typed outcomes. A moderation rejection never calls replacement. An
+accepted moderation result is stored using the revision loaded by the service. If compare-and-
+replace reports a concurrent change, the conflict is returned once without replaying the command or
+silently adopting last-write-wins behavior.
+
+The service assumes a future store will implement atomic compare-and-replace as promised by
+`ContributionAggregateStore`; it does not claim to provide a distributed transaction. It adds no
+adapter, transaction, lock, retry loop, persistence, Firebase integration, network, UI, or runtime
+entry point, so it does not create an operational collection path.
+
 ## Remaining dependencies and next slice
 
 Legal/privacy/product decisions remain required for consent wording/version custody, contracting
 entity, minors, withdrawal/deletion, snapshot and trained-model treatment, retention, vendor and
 sublicense scope, public display, marketing, and incident/takedown handling.
 
-FI-CONTRIB.2 now has its backend-neutral domain, moderation, storage/access, and authorization
-contracts. Any next slice remains blocked from operational collection by `FI-CONTRIB.1`; Firebase,
-persistence, uploads, UI, and production consent artifacts are still absent.
+FI-CONTRIB.2 now has its backend-neutral domain, moderation, storage/access, authorization, and
+application-orchestration contracts. Any next slice remains blocked from operational collection by
+`FI-CONTRIB.1`; Firebase, persistence, uploads, UI, and production consent artifacts are absent.

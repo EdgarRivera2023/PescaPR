@@ -229,6 +229,11 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
     conflict results; centralized deny-by-default capability authorization; and empty/synthetic
     in-memory fakes. No infrastructure repository, binary storage, persistence, authentication
     adapter, Firebase path, production consent, UI, upload, or runtime collection path exists.
+  - FI-CONTRIB.2-APPLICATION-SERVICE [x] Add a backend-neutral moderation coordinator with explicit
+    command-to-capability mapping, authorization-before-load capability checks, stored ownership
+    verification, current-state moderation, and one-shot optimistic compare-and-replace. Typed
+    denial, not-found, moderation, conflict, and invariant results are covered by synthetic tests;
+    no retry loop, infrastructure, persistence, Firebase, UI, upload, or runtime entry point exists.
 - FI-CONTRIB.3 [ ] Design and implement isolated backend/Storage/Firestore architecture and security
   rules for quarantined originals, private consent evidence, sanitized training derivatives, and
   separately permissioned public-display copies; complete security/privacy testing before uploads.
