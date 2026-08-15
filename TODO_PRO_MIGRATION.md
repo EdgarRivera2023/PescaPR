@@ -193,6 +193,11 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
     - FI-MICRO-POC.2-HAEMULON-RESCUE [x] Complete the one-time narrow source rescue, preserve
       conservative grouping, and record five permission-only opportunities. Public/open supply did
       not close the three-group gap; do not begin another discovery strategy automatically.
+    - FI-MICRO-POC.2-UNBLOCK-REVIEW [x] Review existing micro-POC, POC v2, permission-only, and
+      specialist queues. The smallest credible next action is a legal/product decision to pursue
+      direct permission for at least three already-recorded independent *Haemulon plumieri* groups,
+      followed by rights/label/quality/grouping approval. No new discovery, outreach, acquisition,
+      or contributor collection was initiated; the 10-group gate remains unchanged.
 - FI-MICRO-POC.3 [ ] Train the first small transfer-learning model, export a mobile-compatible
   artifact, verify canonical-ID output mapping, and emit real validation/development-OOD
   predictions into FI-A.8 tooling. Treat results strictly as architecture evidence, not production
