@@ -334,7 +334,9 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
 
 ## Version 2.4
 ## Module 6: Bilingual Localization (English & Spanish)
-- v2.4.0 [ ] Create the `values-es` resource directory for Spanish localization.
+- v2.4.0 [x] Create the `values-es` resource foundation and inventory remaining static UI,
+  accessibility, formatting, dynamic-data, and logic-key localization work in
+  `docs/localization_inventory.md`. No strings were translated or migrated.
 - v2.4.1 [ ] Extract all hardcoded UI text into the default `res/values/strings.xml` (English).
 - v2.4.2 [ ] Populate `res/values-es/strings.xml` with the corresponding Spanish translations.
 - v2.4.3 [ ] Refactor MainActivity and Jetpack Compose screens to utilize `stringResource()`.
