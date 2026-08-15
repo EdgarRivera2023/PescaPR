@@ -210,7 +210,7 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
   approval for contributor agreement and privacy notice, contracting party, eligibility/minors,
   consent evidence, license/vendor/transfer scope, public-display separation, withdrawal/deletion,
   trained-model/snapshot treatment, retention, takedown, and incident processes.
-- FI-CONTRIB.2 [ ] Freeze backend-neutral contracts for versioned consent/grants, canonical-ID
+- FI-CONTRIB.2 [x] Freeze backend-neutral contracts for versioned consent/grants, canonical-ID
   submission and training-asset schemas, typed lifecycle/rejection/review events, storage/access
   boundaries, privacy flags, and validation fixtures. Do not create upload UI or enable collection.
   - FI-CONTRIB.2-CONTRACTS [x] Implement backend-neutral Kotlin consent/right, lifecycle,
@@ -224,6 +224,11 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
     consent-version registry abstraction with an empty-by-default in-memory implementation and
     synthetic tests. No production-selectable consent version, persistence, Firebase adapter, UI,
     or collection path exists; FI-CONTRIB.1 remains blocking.
+  - FI-CONTRIB.2-STORAGE-AUTH-CONTRACTS [x] Add opaque backend-neutral aggregate/history,
+    controlled-asset metadata, and snapshot/provenance lookup boundaries; explicit optimistic
+    conflict results; centralized deny-by-default capability authorization; and empty/synthetic
+    in-memory fakes. No infrastructure repository, binary storage, persistence, authentication
+    adapter, Firebase path, production consent, UI, upload, or runtime collection path exists.
 - FI-CONTRIB.3 [ ] Design and implement isolated backend/Storage/Firestore architecture and security
   rules for quarantined originals, private consent evidence, sanitized training derivatives, and
   separately permissioned public-display copies; complete security/privacy testing before uploads.

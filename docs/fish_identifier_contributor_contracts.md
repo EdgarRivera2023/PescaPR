@@ -7,9 +7,9 @@ qualified legal, privacy, and product approval before implementation.
 ## Scope
 
 The contracts under `com.bradmir.pescapr.data.contribution` describe future contributed training
-data without connecting to UI, Firebase, Storage, Firestore, repositories, networking, or image
-capture. They encode safety boundaries so later persistence cannot treat an ordinary personal or
-public-display photo as training data.
+data without connecting to UI, Firebase, Storage, Firestore, infrastructure repositories,
+networking, or image capture. They encode safety boundaries so later persistence cannot treat an
+ordinary personal or public-display photo as training data.
 
 ## Rights and consent
 
@@ -85,7 +85,7 @@ versions, classifier-manifest checksum, timestamps, and output artifact identity
 Collection remains impossible through this slice because there is:
 
 - no UI or consent screen;
-- no repository or use case invoking these contracts;
+- no persistent repository, infrastructure adapter, or use case invoking these contracts;
 - no network, Firebase, Storage, or Firestore adapter;
 - no collection/schema/security-rule change;
 - no object upload or dataset export implementation; and
@@ -147,12 +147,50 @@ approved and effective remains historically valid after that version is retired.
 retirement is invalid. Registry validation also requires the submission's consent locale to match
 the registered version.
 
+## Storage and controlled-asset boundaries
+
+`ContributionAggregateStore` defines create, lookup, revision-aware replacement, moderation query,
+and review/event-history reads around the existing `ModerationAggregate`. Create conflicts,
+not-found updates, stale revisions, and malformed next revisions are explicit typed results. A
+replacement must preserve the contribution ID and advance the expected revision exactly once; the
+in-memory fake also rejects truncation or replacement of existing review/event history. The store
+does not duplicate lifecycle validation performed by the moderation engine.
+
+`ControlledAssetCatalog` exposes metadata and logical availability for quarantine/source and
+sanitized-training assets. Its opaque IDs contain no filesystem path, URI, URL, bucket, document,
+or transport details. `UNAVAILABLE`, `EXCLUDED`, and `WITHDRAWN` express application state without
+requiring or promising physical deletion. The boundary carries only validation metadata, never
+binary content. `DatasetProvenanceLookup` reads the existing snapshot-membership and training-run
+provenance types without defining an export or snapshot writer.
+
+The `InMemoryContributionAggregateStore`, `InMemoryControlledAssetCatalog`, and
+`InMemoryDatasetProvenanceLookup` are deterministic test/development fakes. They start empty, use
+only caller-supplied synthetic values, perform no I/O, and are not production repositories.
+
+## Authorization policy
+
+`ContributionAuthorizationPolicy` evaluates a typed action for an opaque principal and explicit
+capability set. The default capability policy denies by default and is independent of Firebase Auth,
+Android permissions, UI roles, and authentication mechanics. Matching a contribution owner ID is
+not sufficient: own-record reads and withdrawal initiation require both ownership and a granted
+capability.
+
+General moderation, specialist label review, dataset approval, withdrawal completion,
+administrative exclusion, sensitive quarantine reads, sanitized-training reads, provenance
+inspection, public display, and ML use are separate capabilities. In particular, moderation does
+not imply dataset approval, and sanitized-asset access does not imply quarantine access.
+
+Public-display and ML-use decisions require both their corresponding actor capability and the
+independent consent grant. Public-display consent grants neither ML use nor storage access; ML
+consent grants neither public-display authority nor quarantine access. Authentication and future
+organizational role assignment remain outside this contract.
+
 ## Remaining dependencies and next slice
 
 Legal/privacy/product decisions remain required for consent wording/version custody, contracting
 entity, minors, withdrawal/deletion, snapshot and trained-model treatment, retention, vendor and
 sublicense scope, public display, marketing, and incident/takedown handling.
 
-The next safe slice is to finish FI-CONTRIB.2 with storage/access-boundary interfaces and
-authorization-policy contracts backed only by in-memory fakes and tests. It must still avoid schema,
-Firebase, uploads, UI, and production consent artifacts until `FI-CONTRIB.1` is approved.
+FI-CONTRIB.2 now has its backend-neutral domain, moderation, storage/access, and authorization
+contracts. Any next slice remains blocked from operational collection by `FI-CONTRIB.1`; Firebase,
+persistence, uploads, UI, and production consent artifacts are still absent.
