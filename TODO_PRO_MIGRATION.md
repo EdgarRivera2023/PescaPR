@@ -260,8 +260,11 @@ does not replace—the micro-POC, FI-A.8, production dataset gates, or canonical
   withdrawal counts, Stage 1 gaps, and snapshot/model utilization.
 
 #### Phase B — Model Training & Validation — PLANNED
-- FI-B.1 [ ] Evaluate and select an appropriate lightweight mobile image-classification
-  architecture without prematurely binding the roadmap to one architecture.
+- FI-B.1 [x] Evaluate lightweight mobile architecture families and record
+  `fish-identifier-architecture-decision-v1`: MobileNetV3-Large at 224x224 is the preferred first
+  controlled 39-class experiment, EfficientNet-Lite0 is the fallback/comparator, and MobileNetV2
+  remains a reproducibility baseline. The decision is provisional and requires future FI-A.9 evidence,
+  export, quantization, and multi-device measurements; no model, runtime, or threshold was selected.
 - FI-B.2 [ ] Train or fine-tune the selected architecture using the approved labeled dataset.
 - FI-B.3 [ ] Export the validated model to an Android-compatible local inference format,
   expected to be TensorFlow Lite/LiteRT unless evaluation identifies a better fit.
