@@ -1,14 +1,14 @@
 # Fish Identifier Rejection Evaluation Plan
 
 **Date:** 2026-08-14
-**Roadmap scope:** FI-A.8 framework only
-**Status:** READY FOR FUTURE EMPIRICAL EXECUTION; NO MODEL OUTPUTS OR THRESHOLDS EXIST
+**Roadmap scope:** FI-A.8 rejection framework and FI-A.9 evaluation acceptance policy
+**Status:** POLICIES DEFINED FOR FUTURE EMPIRICAL EXECUTION; NO MODEL OUTPUTS OR THRESHOLDS EXIST
 
 ## 1. Purpose
 
 Define how a future 39-class on-device classifier will decide whether to return one canonical `FichaPez.id`, defer to several plausible supported candidates, or decline identification. Guía Oficial remains authoritative for names, aliases, characteristics, regulations, and images. The model and rejection policy produce IDs and scores only.
 
-The policy's primary objective is to minimize confidently wrong species identifications. Its secondary objective is to avoid excessive rejection of genuinely identifiable supported fish. Its tertiary objective is to offer useful top-2/top-3 alternatives when evidence is close. These tradeoffs require empirical validation; this plan assigns no target percentage or production threshold.
+The rejection policy's primary objective is to minimize confidently wrong species identifications. Its secondary objective is to avoid excessive rejection of genuinely identifiable supported fish. Its tertiary objective is to offer useful top-2/top-3 alternatives when evidence is close. These tradeoffs require empirical validation. FI-A.8 assigns no production threshold; the separate FI-A.9 policy below predeclares provisional engineering acceptance targets for judging future evidence.
 
 ## 2. Current limitations
 
@@ -170,3 +170,64 @@ No real score distribution exists, so the project cannot select thresholds, deci
 ## 17. Exact next action
 
 Continue FI-A.7-PILOT acquisition and specialist reviews until an experiment-quality development/validation subset exists. Then, under Phase B, train the first candidate model, export versioned validation predictions for supported and OOD images, and run this evaluator to compare predeclared policies. Do not open `testset-v1` for threshold selection.
+
+## 18. FI-A.9 versioned acceptance policy
+
+`FishIdentifierEvaluationPolicies.PROVISIONAL_V1` is the pre-training engineering gate for the
+frozen 39-class catalog. It is not a claim of achieved accuracy or guaranteed field performance.
+Every evaluation decision binds the evaluation-policy, model, classifier-manifest, dataset-snapshot,
+and threshold-policy versions. `thresholdPolicyVersion` remains `UNSELECTED` until FI-A.8 empirical
+work freezes a candidate policy; this contract contains no score or margin threshold.
+
+The pure gate returns `PASS`, `FAIL`, `INSUFFICIENT_EVIDENCE`, or `INVALID_INPUT` with stable typed
+reasons. Input metric order does not affect the decision, and duplicate/conflicting class or slice
+records fail as invalid evidence.
+
+## 19. Provisional targets
+
+These numbers are conservative provisional engineering targets selected before model training. They
+must be revised only through a new policy version with written rationale, never by editing v1 after
+seeing locked TEST results.
+
+| Dimension | Hard gate | Preferred | Treatment |
+|---|---:|---:|---|
+| Locked TEST top-1 accuracy | >= 85% | >= 90% | Hard / advisory |
+| Locked TEST top-3 accuracy | >= 97% | >= 99% | Hard / advisory |
+| Macro recall and precision | >= 82% each | >= 88% each | Hard / advisory |
+| Every supported class recall and precision | >= 70% each | >= 80% each | Hard / advisory |
+| Supported ambiguous rate | <= 20% | <= 12% | Hard / advisory |
+| Overall OOD false acceptance | <= 5% | <= 2% | Hard / advisory |
+| Unsupported-fish false acceptance / rejection | <= 5% / >= 90% | <= 2% / >= 95% | Hard |
+| Non-fish false acceptance / rejection | <= 2% / >= 95% | <= 1% / >= 98% | Hard |
+| Expected calibration error | <= 5% | <= 3% | Hard / advisory |
+| Confusion-slice top-1 / top-3 | >= 75% / >= 95% | >= 85% / >= 98% | Hard |
+| Confusion-slice incorrect accepted result | <= 10% | <= 5% | Hard |
+
+Supported acceptance rate remains diagnostic: the gate constrains ambiguity and unsafe acceptance
+instead of encouraging forced identifications. Calibration is also necessary but not sufficient;
+passing ECE cannot compensate for OOD false acceptance.
+
+## 20. Confusion slices
+
+The policy predeclares canonical-ID slices for snappers, groupers, amberjacks, mackerels/wahoo,
+barracudas, and boxfish/trunkfish. These are evaluation slices only, not claims of biological
+equivalence. Each must independently meet its accuracy and incorrect-acceptance gates so strong
+overall metrics cannot hide systematic supported-species confusion.
+
+## 21. Evidence adequacy and locked TEST gate
+
+Production-release evidence is insufficient unless locked TEST contains at least 30 independent
+groups per supported class (50 preferred), 60 independent groups per confusion slice, 200 verified
+unsupported-fish groups, and 200 non-fish groups. Counts refer to controlled independent grouping,
+not crops, augmentations, frames, or derivatives from the same source. These provisional minima
+favor an honest `INSUFFICIENT_EVIDENCE` decision over statistically weak accuracy claims.
+
+Architecture, preprocessing, calibration, and FI-A.8 threshold decisions use TRAIN and development/
+VALIDATION only. Locked TEST is consulted at defined frozen checkpoints. A locked top-1 decrease of
+more than five percentage points from development/validation fails the gate even if its absolute
+accuracy clears the minimum. A failed checkpoint starts a documented new model/policy iteration;
+it must not trigger quiet tuning against TEST.
+
+The current 22-row pilot and four-row `testset-v1` cannot satisfy this evidence gate. They validate
+mechanics only. No current model has passed, and no training or Android integration readiness is
+implied.

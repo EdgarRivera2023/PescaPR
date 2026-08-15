@@ -138,7 +138,11 @@ on-device classifier → ranked canonical `FichaPez.id` candidates → `Official
     tests. No numeric production threshold is selected. FI-A.8 remains open until a trained model
     produces validation/OOD predictions, a policy is empirically selected, and a frozen locked-test
     checkpoint is evaluated.
-- FI-A.9 [ ] Define accuracy targets and evaluation criteria before Android model integration.
+- FI-A.9 [x] Define versioned pre-training accuracy/evidence criteria with provisional hard and
+  preferred top-1/top-3, macro/per-class, confusion-slice, OOD/non-fish rejection, ambiguity,
+  calibration, independent-coverage, and locked-TEST regression gates. Pure typed evaluation
+  contracts/tests bind policy, model, manifest, snapshot, and future threshold-policy versions.
+  No target is claimed achieved and no production threshold, model, training, or integration exists.
 - FI-A.10 [ ] Treat the current approximately 124 reference-image URLs (about 1–5 per species)
   only as reference/seed material; they are not sufficient by themselves, and a substantially
   larger labeled dataset will almost certainly be required for a robust field-photo classifier.
@@ -368,7 +372,8 @@ The morphology dataset is a continuously evolving PescaPR data asset and is not 
 ---
 **Current Status:** Module 5 complete (v2.3.0 through v2.3.5 done). Fish Identifier
 Modernization FI-A.7 is complete with locked `testset-v1` and verified `pilot-snapshot-v1`.
-FI-A.8-FRAMEWORK is complete, while empirical FI-A.8 and the broader FI-A.7-PILOT acquisition /
-specialist-review track remain open prerequisites before Module 6.
+FI-A.8-FRAMEWORK and the pre-training FI-A.9 acceptance policy are complete, while empirical FI-A.8
+and the broader FI-A.7-PILOT acquisition / specialist-review track remain open prerequisites before
+Module 6.
 
  
