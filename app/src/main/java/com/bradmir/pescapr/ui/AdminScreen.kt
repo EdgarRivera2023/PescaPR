@@ -31,6 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bradmir.pescapr.utils.BugReportLogger
+import com.bradmir.pescapr.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun AdminScreen() {
@@ -42,17 +44,17 @@ fun AdminScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            "Herramientas de Administración",
+            stringResource(R.string.admin_tools_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Button(onClick = { showReportDialog = true }) {
             Icon(Icons.Default.BugReport, contentDescription = null)
-            Text("Reportar Error", modifier = Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.admin_report_error), modifier = Modifier.padding(start = 8.dp))
         }
         OutlinedButton(onClick = { showLogDialog = true }) {
             Icon(Icons.Default.ListAlt, contentDescription = null)
-            Text("Ver Registro de Errores", modifier = Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.admin_view_error_log), modifier = Modifier.padding(start = 8.dp))
         }
     }
 
@@ -68,20 +70,20 @@ private fun ReportDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reportar Error") },
+        title = { Text(stringResource(R.string.admin_report_error)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Título (opcional)") },
+                    label = { Text(stringResource(R.string.admin_title_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Descripción") },
+                    label = { Text(stringResource(R.string.admin_description)) },
                     minLines = 4,
                     maxLines = 8,
                     modifier = Modifier.fillMaxWidth()
@@ -96,27 +98,28 @@ private fun ReportDialog(onDismiss: () -> Unit) {
                         title = ""
                         description = ""
                         onDismiss()
-                        Toast.makeText(context, "Error guardado", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.admin_error_saved), Toast.LENGTH_SHORT).show()
                     }
                 }
-            ) { Text("Guardar") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
     )
 }
 
 @Composable
 private fun LogDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val noErrorsText = stringResource(R.string.admin_no_errors)
     var logText by remember { mutableStateOf(BugReportLogger.read(context)) }
     var confirmClear by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Registro de Errores") },
+        title = { Text(stringResource(R.string.admin_error_log)) },
         text = {
             Text(
-                logText.ifBlank { "No hay errores reportados." },
+                logText.ifBlank { noErrorsText },
                 modifier = Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())
             )
         },
@@ -126,19 +129,19 @@ private fun LogDialog(onDismiss: () -> Unit) {
                 onClick = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, "Registro de errores de PescaPR")
+                        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.admin_error_log_subject))
                         putExtra(Intent.EXTRA_TEXT, logText)
                     }
-                    context.startActivity(Intent.createChooser(shareIntent, "Compartir registro"))
+                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.admin_share_log)))
                 }
-            ) { Text("Compartir") }
+            ) { Text(stringResource(R.string.admin_share)) }
         },
         dismissButton = {
             Column {
                 TextButton(enabled = logText.isNotBlank(), onClick = { confirmClear = true }) {
-                    Text("Borrar registro")
+                    Text(stringResource(R.string.admin_clear_log))
                 }
-                TextButton(onClick = onDismiss) { Text("Cerrar") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
             }
         }
     )
@@ -146,16 +149,16 @@ private fun LogDialog(onDismiss: () -> Unit) {
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("Borrar registro") },
-            text = { Text("¿Seguro que deseas borrar todos los errores reportados?") },
+            title = { Text(stringResource(R.string.admin_clear_log)) },
+            text = { Text(stringResource(R.string.admin_confirm_clear_log)) },
             confirmButton = {
                 TextButton(onClick = {
                     if (BugReportLogger.clear(context)) logText = ""
                     confirmClear = false
-                }) { Text("Borrar") }
+                }) { Text(stringResource(R.string.admin_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text("Cancelar") }
+                TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }

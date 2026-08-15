@@ -14,11 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bradmir.pescapr.AppDatabase
 import com.bradmir.pescapr.BuildConfig
 import com.bradmir.pescapr.RecordEntity
+import com.bradmir.pescapr.R
 import com.bradmir.pescapr.data.model.RecordPesca
 import com.bradmir.pescapr.data.CatchRepository
 import com.google.ai.client.generativeai.GenerativeModel
@@ -118,13 +120,13 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Diario Privado", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.records_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 val user = FirebaseAuth.getInstance().currentUser
                 if (user != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.CloudDone, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
                         Spacer(Modifier.width(4.dp))
-                        Text("Sincronizado", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text(stringResource(R.string.records_synced), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
                 } else {
                     TextButton(
@@ -132,15 +134,15 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
                             coroutineScope.launch {
                                 try {
                                     FirebaseAuth.getInstance().signInAnonymously().await()
-                                    Toast.makeText(context, "Sincronización activada", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.records_sync_enabled), Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Error al activar: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.records_sync_error, e.message ?: ""), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text("Activar Sincronización (Pro)", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.records_enable_sync_pro), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -156,7 +158,7 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
                 },
                 colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
             ) {
-                Icon(Icons.Default.AutoAwesome, "AI Insights", tint = MaterialTheme.colorScheme.secondary)
+                Icon(Icons.Default.AutoAwesome, stringResource(R.string.records_ai_insights), tint = MaterialTheme.colorScheme.secondary)
             }
         }
 
@@ -164,7 +166,7 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
 
         if (records.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aún no tienes capturas registradas.", color = Color.Gray)
+                Text(stringResource(R.string.records_empty), color = Color.Gray)
             }
         } else {
             Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -183,7 +185,7 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
                                     Spacer(Modifier.width(12.dp))
                                     Text(especie, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 }
-                                Text("${capturas.size} capturas", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(stringResource(R.string.records_catch_count, capturas.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             }
 
                             if (expandido) {
@@ -266,7 +268,7 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.secondary)
                     Spacer(Modifier.width(8.dp))
-                    Text("AI Insights")
+                    Text(stringResource(R.string.records_ai_insights))
                 }
             },
             text = {
@@ -280,7 +282,7 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
             },
             confirmButton = {
                 TextButton(onClick = { mostrarDialogoAI = false }, enabled = !analizandoAI) {
-                    Text("Cerrar")
+                    Text(stringResource(R.string.action_close))
                 }
             }
         )
@@ -300,13 +302,13 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
 
         AlertDialog(
             onDismissRequest = { if (!guardando) mostrarDialogoEdit = false },
-            title = { Text("Editar Captura") },
+            title = { Text(stringResource(R.string.records_edit_catch)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = nombrePez, onValueChange = { nombrePez = it }, label = { Text("Especie") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = nombrePez, onValueChange = { nombrePez = it }, label = { Text(stringResource(R.string.records_species)) }, modifier = Modifier.fillMaxWidth())
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = peso, onValueChange = { peso = it }, label = { Text("Peso") }, modifier = Modifier.weight(1f))
-                        OutlinedTextField(value = longitud, onValueChange = { longitud = it }, label = { Text("Longitud") }, modifier = Modifier.weight(1f))
+                        OutlinedTextField(value = peso, onValueChange = { peso = it }, label = { Text(stringResource(R.string.records_weight)) }, modifier = Modifier.weight(1f))
+                        OutlinedTextField(value = longitud, onValueChange = { longitud = it }, label = { Text(stringResource(R.string.records_length)) }, modifier = Modifier.weight(1f))
                     }
                     if (guardando) CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
@@ -340,10 +342,10 @@ fun PantallaRecordsTab(database: AppDatabase, repository: CatchRepository, onIrA
                             }
                         }
                     }
-                }) { Text("Guardar") }
+                }) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { mostrarDialogoEdit = false }) { Text("Cancelar") }
+                TextButton(onClick = { mostrarDialogoEdit = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.bradmir.pescapr.BuildConfig
 import com.bradmir.pescapr.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun AboutDialog(onDismiss: () -> Unit) {
@@ -39,7 +40,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(painter = painterResource(id = R.drawable.logo_small), contentDescription = null, modifier = Modifier.size(40.dp))
                 Spacer(Modifier.width(12.dp))
-                Text("Acerca de PescaPR")
+                Text(stringResource(R.string.about_title))
             }
         },
         text = {
@@ -48,186 +49,124 @@ fun AboutDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Versión ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("Tu compañero de pesca en Puerto Rico. Identificación de especies con IA, mapa de spots y registro de capturas.")
-                    Text("Desarrollado por: Bradmir Consulting / Edgar Rivera", style = MaterialTheme.typography.labelSmall)
-                    Text("Potenciado por Google Gemini AI.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.about_description))
+                    Text(stringResource(R.string.about_developed_by), style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.about_powered_by), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
 
                 HorizontalDivider()
 
-                Text("Notas de Versión", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.about_release_notes), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
                 // v2.3.5
                 VersionNote(
-                    version = "v2.3.5 - 8/10/2026",
-                    changes = listOf(
-                        "Morfología Costera Actualizable: Recibe nuevas estructuras sin actualizar la app y conserva los datos disponibles sin conexión."
-                    )
+                    version = stringResource(R.string.release_version_235),
+                    changes = listOf(stringResource(R.string.release_235_change1))
                 )
 
                 // v2.3.4
                 VersionNote(
-                    version = "v2.3.4 - 8/10/2026",
-                    changes = listOf(
-                        "Morfología Costera Interactiva: Toca una estructura para consultar sus detalles sin bloquear la interacción con los spots de pesca."
-                    )
+                    version = stringResource(R.string.release_version_234),
+                    changes = listOf(stringResource(R.string.release_234_change1))
                 )
 
                 // v2.1.5
                 VersionNote(
-                    version = "v2.1.5 - 7/26/2026",
-                    changes = listOf(
-                        "Publicación Estática de Spots: Guardado en Firestore con atribución userId explícita y cero rastreo en tiempo real.",
-                        "Terminología UI: Actualización global de 'Swell' a 'Marejada'."
-                    )
+                    version = stringResource(R.string.release_version_215),
+                    changes = listOf(stringResource(R.string.release_215_change1), stringResource(R.string.release_215_change2))
                 )
 
                 // v2.1.4
                 VersionNote(
-                    version = "v2.1.4 - 7/26/2026",
-                    changes = listOf(
-                        "Pantalla Paywall Pro: Interfaz de usuario para suscripciones y beneficios de PescaPR Pro."
-                    )
+                    version = stringResource(R.string.release_version_214),
+                    changes = listOf(stringResource(R.string.release_214_change1))
                 )
 
                 // v2.1.3
                 VersionNote(
-                    version = "v2.1.3 - 7/26/2026",
-                    changes = listOf(
-                        "SubscriptionManager: Control de estado Pro en tiempo real y sincronización de derechos con Firestore.",
-                        "Manejo de Compras: Soporte para verificación asíncrona de suscripciones y flujo de facturación."
-                    )
+                    version = stringResource(R.string.release_version_213),
+                    changes = listOf(stringResource(R.string.release_213_change1), stringResource(R.string.release_213_change2))
                 )
 
                 // v2.1.2
                 VersionNote(
-                    version = "v2.1.2 - 7/26/2026",
-                    changes = listOf(
-                        "Google Play Billing v7: Integración de dependencias ktx de facturación oficial de Google Play."
-                    )
+                    version = stringResource(R.string.release_version_212),
+                    changes = listOf(stringResource(R.string.release_212_change1))
                 )
 
                 // v2.1.1
                 VersionNote(
-                    version = "v2.1.1 - 7/25/2026",
-                    changes = listOf(
-                        "Red de Pines de la Comunidad: Filtrado por rol según estado de suscripción Pro.",
-                        "Consultas Optimizadas: Lectura bajo demanda con botón de refresco manual para ahorrar lecturas de Firestore."
-                    )
+                    version = stringResource(R.string.release_version_211),
+                    changes = listOf(stringResource(R.string.release_211_change1), stringResource(R.string.release_211_change2))
                 )
 
                 // v2.1.0
                 VersionNote(
-                    version = "v2.1.0 - 7/25/2026",
-                    changes = listOf(
-                        "Modelo PuntoPesca: Asociación de spots al ID de usuario en Firestore y Room.",
-                        "Migración Room: Actualización no destructiva de base de datos de v1 a v2."
-                    )
+                    version = stringResource(R.string.release_version_210),
+                    changes = listOf(stringResource(R.string.release_210_change1), stringResource(R.string.release_210_change2))
                 )
 
                 // v2.0.0
                 VersionNote(
-                    version = "v2.0.0 - 7/24/2026",
-                    changes = listOf(
-                        "Diario Privado Pro: Sincronización automática en la nube.",
-                        "AI Pattern Matcher: Análisis inteligente de tus capturas para encontrar patrones de éxito.",
-                        "Métricas Pro Marejada (v1.9): Optimizadas para costa."
-                    )
+                    version = stringResource(R.string.release_version_200),
+                    changes = listOf(stringResource(R.string.release_200_change1), stringResource(R.string.release_200_change2), stringResource(R.string.release_200_change3))
                 )
 
                 // v1.9
                 VersionNote(
-                    version = "v1.9.0 - 7/24/2026",
-                    changes = listOf(
-                        "Pro Feature: Métricas de Marejada y Oleaje en tiempo real.",
-                        "Optimización: Carga paralela de datos meteorológicos y marinos.",
-                        "Arquitectura: Refactorización estructural para módulos Pro."
-                    )
+                    version = stringResource(R.string.release_version_190),
+                    changes = listOf(stringResource(R.string.release_190_change1), stringResource(R.string.release_190_change2), stringResource(R.string.release_190_change3))
                 )
 
                 // v1.8
                 VersionNote(
-                    version = "v1.8 - 7/23/2026 ",
-                    changes = listOf(
-                        "Nueva Función: Capacidad de búsqueda en Guia Oficial.",
-                        "Manómetro de mareas se actualiza al pulsarlo."
-                    )
+                    version = stringResource(R.string.release_version_180),
+                    changes = listOf(stringResource(R.string.release_180_change1), stringResource(R.string.release_180_change2))
                 )
                 // v1.7
                 VersionNote(
-                    version = "v1.7 - 7/22/2026",
-                    changes = listOf(
-                        "Mejoras de Guia Oficial: Ordenado por nombre científico.",
-                        "Identificación de Picos de Oro: Mejor dia de pesca en los próximos 30 días."
-                    )
+                    version = stringResource(R.string.release_version_170),
+                    changes = listOf(stringResource(R.string.release_170_change1), stringResource(R.string.release_170_change2))
                 )
                 // v1.6
                 VersionNote(
-                    version = "v1.6 - 7/21/2026",
-                    changes = listOf(
-                        "Mejoras de Mapa: Vistas de alta resolución al hacer zoom, corregida.",
-                        "Mejoras de Signos Vitales del Spot: Manómetro de mareas más preciso."
-                    )
+                    version = stringResource(R.string.release_version_160),
+                    changes = listOf(stringResource(R.string.release_160_change1), stringResource(R.string.release_160_change2))
                 )
                 // v1.5
                 VersionNote(
-                    version = "v1.5 - 7/17/2026",
-                    changes = listOf(
-                        "Mejoras de Guía Oficial: Tamaños de imágenes mejoradas para una mejor vista.",
-                        "Pines de Comunidad: Sección de pines privados y pines púbicos en el mapa."
-                    )
+                    version = stringResource(R.string.release_version_150),
+                    changes = listOf(stringResource(R.string.release_150_change1), stringResource(R.string.release_150_change2))
                 )
                 // v1.4
                 VersionNote(
-                    version = "v1.4 - 7/16/2026",
-                    changes = listOf(
-                        "Mejoras de Estabilidad: Protecciones añadidas para evitar cierres inesperados al guardar datos.",
-                        "Recuperación Automática: El app ahora puede recuperarse de errores en la base de datos sin quedar bloqueada.",
-                        "Seguridad de Datos: Manejo mejorado de información interna para mayor fluidez."
-                    )
+                    version = stringResource(R.string.release_version_140),
+                    changes = listOf(stringResource(R.string.release_140_change1), stringResource(R.string.release_140_change2), stringResource(R.string.release_140_change3))
                 )
 
                 // v1.3
                 VersionNote(
-                    version = "v1.3 - 7/15/2026",
-                    changes = listOf(
-                        "Privacidad Total: Spots y récords ahora se guardan localmente (Room).",
-                        "Bitácora Personal: Cada usuario tiene sus propios datos privados.",
-                        "Fotos Locales: Las fotos se guardan en el dispositivo (sin internet).",
-                        "Persistencia: Datos protegidos durante actualizaciones del app."
-                    )
+                    version = stringResource(R.string.release_version_130),
+                    changes = listOf(stringResource(R.string.release_130_change1), stringResource(R.string.release_130_change2), stringResource(R.string.release_130_change3), stringResource(R.string.release_130_change4))
                 )
 
                 // v1.2
                 VersionNote(
-                    version = "v1.2 - 7/4/2026",
-                    changes = listOf(
-                        "Integración avanzada de capturas con el Mapa.",
-                        "Registro de clima automático (Temp, Viento, Presión, Marea).",
-                        "Gestión de fotos del spot (límite de 4 fotos).",
-                        "Navegación directa de Récords a ubicación en Mapa."
-                    )
+                    version = stringResource(R.string.release_version_120),
+                    changes = listOf(stringResource(R.string.release_120_change1), stringResource(R.string.release_120_change2), stringResource(R.string.release_120_change3), stringResource(R.string.release_120_change4))
                 )
 
                 // v1.1
                 VersionNote(
-                    version = "v1.1 - 6/26/2026",
-                    changes = listOf(
-                        "Nueva sección 'Acerca de' con notas de versión.",
-                        "Mejoras en la fluidez de la interfaz de usuario.",
-                        "Corrección de errores en la base de datos Firestore."
-                    )
+                    version = stringResource(R.string.release_version_110),
+                    changes = listOf(stringResource(R.string.release_110_change1), stringResource(R.string.release_110_change2), stringResource(R.string.release_110_change3))
                 )
 
                 // v1.0
                 VersionNote(
-                    version = "v1.0 - 5/8/2026",
-                    changes = listOf(
-                        "Identificación de peces con Inteligencia Artificial.",
-                        "Mapa de spots de pesca compartidos.",
-                        "Guía oficial de regulaciones autogestionada."
-                    )
+                    version = stringResource(R.string.release_version_100),
+                    changes = listOf(stringResource(R.string.release_100_change1), stringResource(R.string.release_100_change2), stringResource(R.string.release_100_change3))
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -235,7 +174,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Cerrar")
+                Text(stringResource(R.string.action_close))
             }
         }
     )

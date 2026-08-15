@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import com.bradmir.pescapr.data.GoldenDayPrediction
 import com.bradmir.pescapr.data.ProSwellMetrics
 import com.bradmir.pescapr.data.isGoldenDay
+import com.bradmir.pescapr.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun ProSwellCard(metrics: ProSwellMetrics?) {
@@ -45,7 +47,7 @@ fun ProSwellCard(metrics: ProSwellMetrics?) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Water, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Métricas Pro Marejada", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.swell_pro_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 }
                 
                 Surface(
@@ -53,7 +55,7 @@ fun ProSwellCard(metrics: ProSwellMetrics?) {
                     shape = CircleShape
                 ) {
                     Text(
-                        text = "SCORE: ${metrics?.score ?: "-"}/10",
+                        text = stringResource(R.string.environment_score, metrics?.score ?: "-"),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onTertiary,
@@ -65,19 +67,19 @@ fun ProSwellCard(metrics: ProSwellMetrics?) {
             Spacer(Modifier.height(12.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SwellInfoItem(label = "Altura", value = "${metrics?.heightFt ?: "-"} ft")
-                SwellInfoItem(label = "Periodo", value = "${metrics?.periodSec ?: "-"} sec")
+                SwellInfoItem(label = stringResource(R.string.swell_height), value = "${metrics?.heightFt ?: "-"} ft")
+                SwellInfoItem(label = stringResource(R.string.swell_period), value = "${metrics?.periodSec ?: "-"} sec")
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     val rotation = (metrics?.directionDeg ?: 0f)
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
-                        contentDescription = "Dirección",
+                        contentDescription = stringResource(R.string.swell_direction),
                         modifier = Modifier
                             .size(24.dp)
                             .graphicsLayer { rotationZ = rotation },
                         tint = MaterialTheme.colorScheme.tertiary
                     )
-                    Text("Dirección", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(stringResource(R.string.swell_direction), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
             }
         }
@@ -113,13 +115,13 @@ fun GoldenDayBanner(
         ) {
             Icon(
                 imageVector = Icons.Default.Star,
-                contentDescription = "Día Dorado",
+                contentDescription = stringResource(R.string.golden_day),
                 tint = Color(0xFF3E2723),
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "¡Día Dorado de Pesca! Condiciones óptimas de oleaje y período.",
+                text = stringResource(R.string.golden_day_banner),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF3E2723)
@@ -143,23 +145,23 @@ fun ProFeaturePaywallDialog(
 ) {
     val (title, description, icon) = when (feature) {
         ProFeatureType.PLANIFICADOR -> Triple(
-            "Planificador de Pesca Pro",
-            "El Planificador de Pesca analiza el alineamiento de oleaje, período y viento para predecir los mejores días de picada y Días Dorados en las costas de Puerto Rico.",
+            stringResource(R.string.paywall_planner_title),
+            stringResource(R.string.paywall_planner_description),
             Icons.Default.Star
         )
         ProFeatureType.TEMP_TENDENCIA -> Triple(
-            "Temp & Tendencia del Agua",
-            "Obtén la temperatura del agua en tiempo real y el análisis de tendencia térmica de 7 días para predecir el comportamiento de los peces.",
+            stringResource(R.string.paywall_water_temp_title),
+            stringResource(R.string.paywall_water_temp_description),
             Icons.Default.Thermostat
         )
         ProFeatureType.MAREJADAS -> Triple(
-            "Métricas Pro de Marejadas",
-            "Accede a datos precisos de altura de olas en pies, período de marejada en segundos y dirección del oleaje en tiempo real.",
+            stringResource(R.string.paywall_swell_title),
+            stringResource(R.string.paywall_swell_description),
             Icons.Default.Water
         )
         ProFeatureType.MORFOLOGIA -> Triple(
-            "Morfología Costera Pro",
-            "Identifica fosa de orilla, canales profundos, arrecifes y comederos sumergidos en las costas de Puerto Rico con PescaPR Pro.",
+            stringResource(R.string.paywall_morphology_title),
+            stringResource(R.string.paywall_morphology_description),
             Icons.Default.Layers
         )
     }
@@ -203,12 +205,12 @@ fun ProFeaturePaywallDialog(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Obtener PescaPR Pro", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_get_pro), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text(stringResource(R.string.action_close))
             }
         }
     )
@@ -225,7 +227,7 @@ fun ProFeatureActionButtons(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Funciones Pro para este Spot",
+            text = stringResource(R.string.pro_features_for_spot),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
@@ -240,7 +242,7 @@ fun ProFeatureActionButtons(
             ) {
                 Icon(Icons.Default.Star, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Planificador de Pesca", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.planner_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
         } else {
             OutlinedButton(
@@ -250,7 +252,7 @@ fun ProFeatureActionButtons(
             ) {
                 Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Planificador de Pesca", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.planner_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -263,7 +265,7 @@ fun ProFeatureActionButtons(
             ) {
                 Icon(Icons.Default.Thermostat, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Temp & Tendencia del Agua", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.water_temp_trend_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
         } else {
             OutlinedButton(
@@ -273,7 +275,7 @@ fun ProFeatureActionButtons(
             ) {
                 Icon(Icons.Default.Thermostat, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Temp & Tendencia del Agua", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.water_temp_trend_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -286,7 +288,7 @@ fun ProFeatureActionButtons(
             ) {
                 Icon(Icons.Default.Water, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Métricas de Marejadas", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.swell_metrics_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
         } else {
             OutlinedButton(
@@ -296,7 +298,7 @@ fun ProFeatureActionButtons(
             ) {
                 Icon(Icons.Default.Water, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Métricas de Marejadas", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.swell_metrics_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -339,7 +341,7 @@ fun GoldenDayPlannerCard(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Planificador de Pesca",
+                        text = stringResource(R.string.planner_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -350,7 +352,7 @@ fun GoldenDayPlannerCard(
                     shape = CircleShape
                 ) {
                     Text(
-                        text = "SCORE: $score/10",
+                        text = stringResource(R.string.environment_score, score),
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
@@ -374,7 +376,7 @@ fun GoldenDayPlannerCard(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Análisis de Condiciones de la Costa:",
+                        text = stringResource(R.string.coast_conditions_analysis),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -395,7 +397,7 @@ fun GoldenDayPlannerCard(
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Período", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(stringResource(R.string.swell_period), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     Text(
                         text = "${String.format(java.util.Locale.US, "%.1f", periodSec)}s",
                         style = MaterialTheme.typography.titleSmall,
@@ -403,7 +405,7 @@ fun GoldenDayPlannerCard(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Altura Olas", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(stringResource(R.string.wave_height), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     Text(
                         text = "${String.format(java.util.Locale.US, "%.1f", heightFt)}ft",
                         style = MaterialTheme.typography.titleSmall,
@@ -444,20 +446,20 @@ fun GoldenDayPlannerSheet(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Planificador de Pesca (30 Días)",
+                        text = stringResource(R.string.planner_30_days),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cerrar")
+                    Text(stringResource(R.string.action_close))
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Ventanas de Marea Dorada (Marea alta dentro de ±120 min de Amanecer/Atardecer)",
+                text = stringResource(R.string.golden_tide_windows),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -470,7 +472,7 @@ fun GoldenDayPlannerSheet(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.4f))
                 ) {
                     Text(
-                        text = "No se detectaron Coincidencias de Marea Dorada en los próximos 30 días.",
+                        text = stringResource(R.string.no_golden_tide_matches),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         modifier = Modifier.padding(16.dp),
@@ -520,7 +522,7 @@ fun GoldenDayPlannerSheet(
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = "${item.windowType} Dorado",
+                                                text = stringResource(R.string.golden_window, item.windowType),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF3E2723)
@@ -536,13 +538,13 @@ fun GoldenDayPlannerSheet(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Marea Alta: ${item.highTideTime}",
+                                        text = stringResource(R.string.high_tide_time, item.highTideTime),
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFF4E342E)
                                     )
                                     Text(
-                                        text = "Sol: ${item.sunEventTime}",
+                                        text = stringResource(R.string.sun_event_time, item.sunEventTime),
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFF4E342E)
@@ -568,7 +570,7 @@ fun GoldenDayPlannerSheet(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Consejo Pro: Revisa las 'Métricas de Marejadas' para ver altura y período en esa fecha.",
+                                        text = stringResource(R.string.golden_day_pro_tip),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color(0xFF8D6E63)
                                     )

@@ -20,7 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.billingclient.api.ProductDetails
+import com.bradmir.pescapr.R
 import com.bradmir.pescapr.ui.theme.PescaPRTheme
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun PaywallDialog(
@@ -93,7 +95,7 @@ fun PaywallScreen(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "PESCAPR PRO",
+                    text = stringResource(R.string.billing_pro_badge),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -102,7 +104,7 @@ fun PaywallScreen(
         }
 
         Text(
-            text = "Desbloquea el Potencial Máximo de PescaPR",
+            text = stringResource(R.string.billing_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -118,28 +120,28 @@ fun PaywallScreen(
         ) {
             PaywallFeatureItem(
                 icon = Icons.Default.Water,
-                title = "Métricas de Oleaje & Marejadas",
-                description = "Datos en tiempo real optimizados para pesca de orilla."
+                title = stringResource(R.string.billing_feature_swell),
+                description = stringResource(R.string.billing_feature_swell_desc)
             )
             PaywallFeatureItem(
                 icon = Icons.Default.AutoAwesome,
-                title = "AI Catch Pattern Matcher",
-                description = "Análisis inteligente con Inteligencia Artificial para predecir momentos y zonas óptimas."
+                title = stringResource(R.string.billing_feature_ai),
+                description = stringResource(R.string.billing_feature_ai_desc)
             )
             PaywallFeatureItem(
                 icon = Icons.Default.Group,
-                title = "Red de Pines de la Comunidad",
-                description = "Acceso completo a spots compartidos por otros pescadores locales."
+                title = stringResource(R.string.billing_feature_community),
+                description = stringResource(R.string.billing_feature_community_desc)
             )
             PaywallFeatureItem(
                 icon = Icons.Default.Map,
-                title = "Morfología Costera & Estructuras",
-                description = "Capas avanzadas de mapas marinos y fondos costeros."
+                title = stringResource(R.string.billing_feature_morphology),
+                description = stringResource(R.string.billing_feature_morphology_desc)
             )
             PaywallFeatureItem(
                 icon = Icons.Default.CloudSync,
-                title = "Sincronización & Modo Offline",
-                description = "Acceso a tus récords y mapas sin necesidad de acceso a internet."
+                title = stringResource(R.string.billing_feature_offline),
+                description = stringResource(R.string.billing_feature_offline_desc)
             )
         }
 
@@ -158,7 +160,7 @@ fun PaywallScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Suscripción PescaPR Pro",
+                    text = stringResource(R.string.billing_subscription_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.Gray
                 )
@@ -169,7 +171,7 @@ fun PaywallScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Cancela en cualquier momento desde Google Play",
+                    text = stringResource(R.string.billing_cancel_policy),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray
                 )
@@ -194,7 +196,7 @@ fun PaywallScreen(
                 )
             } else {
                 Text(
-                    text = "Suscribirme Ahora",
+                    text = stringResource(R.string.billing_subscribe),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -206,7 +208,7 @@ fun PaywallScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Continuar con versión gratuita",
+                text = stringResource(R.string.billing_continue_free),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray
             )

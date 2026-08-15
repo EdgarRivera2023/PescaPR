@@ -53,10 +53,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bradmir.pescapr.BuildConfig
+import com.bradmir.pescapr.R
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.firebase.firestore.FirebaseFirestore
@@ -85,7 +87,8 @@ fun PantallaIdentificadorYRegulacionesTab() {
     var bitmapSeleccionado by remember { mutableStateOf<Bitmap?>(null) }
     var analizando by remember { mutableStateOf(false) }
     var analizadoCompleto by remember { mutableStateOf(false) }
-    var datosIdentificacion by remember { mutableStateOf(ResultadoIdentificacion(nombreComun = "Inicie identificación")) }
+    val identifierInitialState = stringResource(R.string.identifier_initial_state)
+    var datosIdentificacion by remember { mutableStateOf(ResultadoIdentificacion(nombreComun = identifierInitialState)) }
 
     val camaraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) { bitmapSeleccionado = bitmap; analizadoCompleto = false }
@@ -99,13 +102,13 @@ fun PantallaIdentificadorYRegulacionesTab() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Validador de Captura", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.identifier_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
         Box(modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(0.4f)).border(1.dp, MaterialTheme.colorScheme.primary.copy(0.2f), RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
             if (bitmapSeleccionado == null) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
-                    Text("Toma una foto de tu pez", color = Color.Gray)
+                    Text(stringResource(R.string.identifier_photo_instruction), color = Color.Gray)
                 }
             } else {
                 Image(bitmap = bitmapSeleccionado!!.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -119,10 +122,10 @@ fun PantallaIdentificadorYRegulacionesTab() {
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = { camaraLauncher.launch(null) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) {
-                Icon(Icons.Default.PhotoCamera, null); Spacer(Modifier.width(8.dp)); Text("Cámara")
+                Icon(Icons.Default.PhotoCamera, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.identifier_take_photo))
             }
             OutlinedButton(onClick = { galeriaLauncher.launch("image/*") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) {
-                Icon(Icons.Default.Collections, null); Spacer(Modifier.width(8.dp)); Text("Galería")
+                Icon(Icons.Default.Collections, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.identifier_choose_gallery))
             }
         }
 
@@ -144,7 +147,7 @@ fun PantallaIdentificadorYRegulacionesTab() {
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("Validar contra Guía Oficial")
+            Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.identifier_validate))
         }
 
         AnimatedVisibility(visible = analizadoCompleto && !analizando) {
@@ -164,24 +167,24 @@ fun ResultadosFichaMatchCard(datos: ResultadoIdentificacion, db: FirebaseFiresto
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = colorEstatus.copy(0.1f)), border = BorderStroke(1.dp, colorEstatus)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("RESULTADO", fontWeight = FontWeight.Black, color = colorEstatus)
-                Text("Certeza: ${datos.certeza}", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.identifier_result_title), fontWeight = FontWeight.Black, color = colorEstatus)
+                Text(stringResource(R.string.identifier_confidence, datos.certeza), style = MaterialTheme.typography.bodySmall)
             }
             Text(text = datos.nombreComun, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (datos.nombreIngles.isNotBlank()) {
-                Text(text = "English: ${datos.nombreIngles}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                Text(text = stringResource(R.string.identifier_english_name, datos.nombreIngles), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
             }
             Text(text = datos.nombreCientifico, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
             HorizontalDivider(thickness = 0.5.dp, color = colorEstatus.copy(0.3f))
 
-            Text("Regulación Comercial:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.identifier_commercial_regulation), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
             Text(text = datos.regulacionComercial, style = MaterialTheme.typography.bodyMedium)
 
-            Text("Regulación Recreativa:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.identifier_recreational_regulation), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
             Text(text = datos.regulacionRecreativa, style = MaterialTheme.typography.bodyMedium)
 
-            Text("Características:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.identifier_characteristics), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
             Text(text = datos.caracteristicas, style = MaterialTheme.typography.bodySmall)
 
             Spacer(Modifier.height(8.dp))
@@ -195,7 +198,7 @@ fun ResultadosFichaMatchCard(datos: ResultadoIdentificacion, db: FirebaseFiresto
                                 "certeza" to datos.certeza,
                                 "timestamp" to System.currentTimeMillis()
                             )).await()
-                            Toast.makeText(context, "Reporte enviado al desarrollador", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.identifier_report_sent), Toast.LENGTH_SHORT).show()
                             reportado = true
                         }
                     },
@@ -205,10 +208,10 @@ fun ResultadosFichaMatchCard(datos: ResultadoIdentificacion, db: FirebaseFiresto
                 ) {
                     Icon(Icons.Default.Error, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Reportar información incorrecta")
+                    Text(stringResource(R.string.identifier_report_incorrect))
                 }
             } else {
-                Text("¡Gracias por tu reporte! Revisaremos la ficha pronto.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.identifier_report_thanks), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.Gray, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

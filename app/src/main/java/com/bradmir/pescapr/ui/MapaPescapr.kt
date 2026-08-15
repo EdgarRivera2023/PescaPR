@@ -1157,14 +1157,14 @@ fun MapaPescapr(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Capturas en esta ubicación",
+                        text = stringResource(R.string.catch_location_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Button(onClick = { mostrarDialogoCaptura = true }) {
                         Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Registrar")
+                        Text(stringResource(R.string.catch_register))
                     }
                 }
 
@@ -1173,7 +1173,7 @@ fun MapaPescapr(
                 if (cargandoCapturas) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 } else if (capturasSpot.isEmpty()) {
-                    Text("No hay capturas registradas aquí aún.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(stringResource(R.string.catch_empty), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 } else {
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         capturasSpot.forEach { record ->
@@ -1225,7 +1225,7 @@ fun MapaPescapr(
                                 androidx.compose.ui.window.Dialog(onDismissRequest = { verDetallesCaptura = false }) {
                                     Card(modifier = Modifier.fillMaxWidth().padding(16.dp), shape = RoundedCornerShape(16.dp)) {
                                         Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.Start) {
-                                            Text("Detalles de la Captura", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(R.string.catch_details_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                             Spacer(Modifier.height(16.dp))
 
                                             if (record.fotosUrls.isNotEmpty()) {
@@ -1239,25 +1239,25 @@ fun MapaPescapr(
 
                                             Text(record.nombrePez, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                                Text("Peso: ${record.peso}", style = MaterialTheme.typography.bodyMedium)
-                                                Text("Longitud: ${record.longitud}", style = MaterialTheme.typography.bodyMedium)
+                                                Text(stringResource(R.string.catch_weight, record.peso), style = MaterialTheme.typography.bodyMedium)
+                                                Text(stringResource(R.string.catch_length, record.longitud), style = MaterialTheme.typography.bodyMedium)
                                             }
-                                            Text("Fecha: ${record.fecha}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                            Text(stringResource(R.string.catch_date, record.fecha), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
                                             Spacer(Modifier.height(16.dp))
                                             HorizontalDivider()
                                             Spacer(Modifier.height(16.dp))
 
-                                            Text("Condiciones al momento de captura:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.catch_conditions_heading), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                                             Spacer(Modifier.height(8.dp))
-                                            Text("Temperatura: ${record.climaTemp.ifBlank { "N/A" }}", style = MaterialTheme.typography.bodySmall)
-                                            Text("Viento: ${record.climaWind.ifBlank { "N/A" }}", style = MaterialTheme.typography.bodySmall)
-                                            Text("Presión: ${record.climaPressure.ifBlank { "N/A" }}", style = MaterialTheme.typography.bodySmall)
-                                            Text("Marea: ${record.climaTide.ifBlank { "N/A" }}", style = MaterialTheme.typography.bodySmall)
+                                            Text(stringResource(R.string.catch_temperature, record.climaTemp.ifBlank { "N/A" }), style = MaterialTheme.typography.bodySmall)
+                                            Text(stringResource(R.string.catch_wind, record.climaWind.ifBlank { "N/A" }), style = MaterialTheme.typography.bodySmall)
+                                            Text(stringResource(R.string.catch_pressure, record.climaPressure.ifBlank { "N/A" }), style = MaterialTheme.typography.bodySmall)
+                                            Text(stringResource(R.string.catch_tide, record.climaTide.ifBlank { "N/A" }), style = MaterialTheme.typography.bodySmall)
 
                                             Spacer(Modifier.height(24.dp))
                                             Button(onClick = { verDetallesCaptura = false }, modifier = Modifier.fillMaxWidth()) {
-                                                Text("Cerrar")
+                                                Text(stringResource(R.string.action_close))
                                             }
                                         }
                                     }
@@ -1281,10 +1281,10 @@ fun MapaPescapr(
 
         AlertDialog(
             onDismissRequest = { if (!guardandoCaptura) mostrarDialogoCaptura = false },
-            title = { Text(if (recordParaEditarCaptura == null) "Registrar Captura" else "Editar Captura") },
+            title = { Text(if (recordParaEditarCaptura == null) stringResource(R.string.catch_register_title) else stringResource(R.string.catch_edit_title)) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Ubicación: ${spotSeleccionado?.nombre}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.catch_location, spotSeleccionado?.nombre ?: ""), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
 
                     Button(
                         onClick = { multiPickerLauncher.launch("image/*") },
@@ -1294,7 +1294,7 @@ fun MapaPescapr(
                     ) {
                         Icon(Icons.Default.AddAPhoto, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Añadir Fotos")
+                        Text(stringResource(R.string.catch_add_photos))
                     }
 
                     if (bitmapsCaptura.isNotEmpty()) {
@@ -1327,9 +1327,9 @@ fun MapaPescapr(
                                             nombrePezCaptura = result.nombreComun
                                             fichaSeleccionada = null
                                         }
-                                        Toast.makeText(context, "Pez identificado: ${result.nombreComun}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.catch_ai_identified, result.nombreComun), Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, "Error IA: ${result.nombreComun}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.catch_ai_error, result.nombreComun), Toast.LENGTH_SHORT).show()
                                     }
                                     analizandoIA = false
                                 }
@@ -1343,7 +1343,7 @@ fun MapaPescapr(
                             } else {
                                 Icon(Icons.Default.Psychology, null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Identificar con IA")
+                                Text(stringResource(R.string.catch_identify_ai))
                             }
                         }
 
@@ -1354,7 +1354,7 @@ fun MapaPescapr(
                             OutlinedTextField(
                                 value = if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura,
                                 onValueChange = { nombrePezCaptura = it; fichaSeleccionada = null },
-                                label = { Text("Especie (Guía Oficial o Manual)") },
+                                label = { Text(stringResource(R.string.catch_species_label)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !analizandoIA && !guardandoCaptura,
                                 trailingIcon = {
@@ -1377,14 +1377,14 @@ fun MapaPescapr(
                             OutlinedTextField(
                                 value = pesoCaptura,
                                 onValueChange = { pesoCaptura = it },
-                                label = { Text("Peso (lb/oz)") },
+                                label = { Text(stringResource(R.string.catch_weight_input)) },
                                 modifier = Modifier.weight(1f),
                                 enabled = !analizandoIA && !guardandoCaptura
                             )
                             OutlinedTextField(
                                 value = longitudCaptura,
                                 onValueChange = { longitudCaptura = it },
-                                label = { Text("Longitud (pulg)") },
+                                label = { Text(stringResource(R.string.catch_length_input)) },
                                 modifier = Modifier.weight(1f),
                                 enabled = !analizandoIA && !guardandoCaptura
                             )
@@ -1393,7 +1393,7 @@ fun MapaPescapr(
 
                     if (guardandoCaptura) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        Text("Guardando y subiendo fotos...", modifier = Modifier.align(Alignment.CenterHorizontally), style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.catch_saving), modifier = Modifier.align(Alignment.CenterHorizontally), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             },
@@ -1443,26 +1443,26 @@ fun MapaPescapr(
                                     nombrePezCaptura = ""; pesoCaptura = ""; longitudCaptura = ""; fichaSeleccionada = null
                                     recordParaEditarCaptura = null
                                     mostrarDialogoCaptura = false
-                                    Toast.makeText(context, "Captura registrada localmente", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.catch_saved_locally), Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     e.printStackTrace()
-                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, context.getString(R.string.catch_save_error, e.message ?: ""), Toast.LENGTH_LONG).show()
                                 } finally {
                                     guardandoCaptura = false
                                 }
                             }
                         } else {
-                            Toast.makeText(context, "Indica el nombre del pez", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.catch_species_required), Toast.LENGTH_SHORT).show()
                         }
                     },
                     enabled = !guardandoCaptura && !analizandoIA && (if (fichaSeleccionada != null) fichaSeleccionada!!.nombreComun else nombrePezCaptura).isNotBlank()
                 ) {
-                    Text("Guardar")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { mostrarDialogoCaptura = false }, enabled = !guardandoCaptura) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -1502,17 +1502,17 @@ fun MapaPescapr(
 @Composable
 private fun MorphologyMetadataSheet(feature: MorphologyFeatureMetadata) {
     val rows = buildList {
-        feature.structureType?.let { add("Tipo de estructura" to morphologyLabel(it)) }
-        feature.bottomType?.let { add("Tipo de fondo" to morphologyLabel(it)) }
-        feature.targetSpecies?.let { add("Especies objetivo" to it) }
-        feature.bestTide?.let { add("Mejor marea" to morphologyLabel(it)) }
-        (feature.fishingStrategyEs ?: feature.fishingStrategyEn)?.let { add("Estrategia" to it) }
-        (feature.hazardsEs ?: feature.hazardsEn)?.let { add("Peligros" to it) }
-        feature.notes?.let { add("Notas" to it) }
-        feature.geometrySource?.let { add("Fuente de geometría" to morphologyLabel(it)) }
-        feature.fishingSource?.let { add("Fuente de pesca" to morphologyLabel(it)) }
-        feature.geometryConfidence?.let { add("Confianza de geometría" to morphologyLabel(it)) }
-        feature.fishingConfidence?.let { add("Confianza de pesca" to morphologyLabel(it)) }
+        feature.structureType?.let { add(stringResource(R.string.morphology_structure_type) to morphologyLabel(it)) }
+        feature.bottomType?.let { add(stringResource(R.string.morphology_bottom_type) to morphologyLabel(it)) }
+        feature.targetSpecies?.let { add(stringResource(R.string.morphology_target_species) to it) }
+        feature.bestTide?.let { add(stringResource(R.string.morphology_best_tide) to morphologyLabel(it)) }
+        (feature.fishingStrategyEs ?: feature.fishingStrategyEn)?.let { add(stringResource(R.string.morphology_strategy) to it) }
+        (feature.hazardsEs ?: feature.hazardsEn)?.let { add(stringResource(R.string.morphology_hazards) to it) }
+        feature.notes?.let { add(stringResource(R.string.morphology_notes) to it) }
+        feature.geometrySource?.let { add(stringResource(R.string.morphology_geometry_source) to morphologyLabel(it)) }
+        feature.fishingSource?.let { add(stringResource(R.string.morphology_fishing_source) to morphologyLabel(it)) }
+        feature.geometryConfidence?.let { add(stringResource(R.string.morphology_geometry_confidence) to morphologyLabel(it)) }
+        feature.fishingConfidence?.let { add(stringResource(R.string.morphology_fishing_confidence) to morphologyLabel(it)) }
     }
 
     Column(
@@ -1540,7 +1540,7 @@ private fun MorphologyMetadataSheet(feature: MorphologyFeatureMetadata) {
 
         if (rows.isEmpty()) {
             Text(
-                text = "No hay detalles adicionales disponibles.",
+                text = stringResource(R.string.morphology_no_details),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

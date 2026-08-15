@@ -20,6 +20,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bradmir.pescapr.utils.ThermalTrend
 import com.bradmir.pescapr.utils.ThermalTrendResult
+import com.bradmir.pescapr.R
+import androidx.compose.ui.res.stringResource
 import java.util.Locale
 
 @Composable
@@ -54,13 +56,13 @@ fun WaterTempCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Thermostat,
-                            contentDescription = "Temperatura del Agua",
+                            contentDescription = stringResource(R.string.water_temp_title),
                             tint = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Temperatura del Agua",
+                            text = stringResource(R.string.water_temp_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -89,21 +91,21 @@ fun WaterTempCard(
                 ) {
                     Column {
                         Text(
-                            text = effectiveTemp?.let { "${String.format(Locale.US, "%.1f", it)}°F" } ?: "N/A",
+                            text = effectiveTemp?.let { "${String.format(Locale.US, "%.1f", it)}°F" } ?: stringResource(R.string.not_available),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         if (isEstimated) {
                             Text(
-                                text = "Estimado (Aire - 2°F)",
+                                text = stringResource(R.string.water_temp_estimated),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.tertiary,
                                 fontWeight = FontWeight.SemiBold
                             )
                         } else if ((trendResult?.averageTemp ?: 0f) > 0f) {
                             Text(
-                                text = "Promedio 7d: ${String.format(Locale.US, "%.1f", trendResult?.averageTemp)}°F",
+                                text = stringResource(R.string.water_temp_average_7d, String.format(Locale.US, "%.1f", trendResult?.averageTemp)),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.Gray
                             )
@@ -114,22 +116,22 @@ fun WaterTempCard(
                         ThermalTrend.WARMING -> Triple(
                             Icons.AutoMirrored.Filled.TrendingUp,
                             Color(0xFFE53935),
-                            "En Calentamiento"
+                            stringResource(R.string.water_temp_warming)
                         )
                         ThermalTrend.COOLING -> Triple(
                             Icons.AutoMirrored.Filled.TrendingDown,
                             Color(0xFF1E88E5),
-                            "En Enfriamiento"
+                            stringResource(R.string.water_temp_cooling)
                         )
                         ThermalTrend.STABLE -> Triple(
                             Icons.AutoMirrored.Filled.TrendingFlat,
                             Color.Gray,
-                            "Estable"
+                            stringResource(R.string.water_temp_stable)
                         )
                         ThermalTrend.INSUFFICIENT_DATA, null -> Triple(
                             Icons.AutoMirrored.Filled.HelpOutline,
                             Color.Gray,
-                            "Datos Insuficientes"
+                            stringResource(R.string.water_temp_insufficient)
                         )
                     }
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -141,18 +142,18 @@ fun PantallaGuiaOficialTab(
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Guía Oficial", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.guide_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (BuildConfig.DEBUG) {
                     TextButton(onClick = { onDeveloperModeChange(!esDeveloper) }) {
-                        Text(if(esDeveloper) "Admin ON" else "Modo Vista")
+                        Text(if(esDeveloper) stringResource(R.string.guide_admin_on) else stringResource(R.string.guide_view_mode))
                     }
                 }
 
                 if (esDeveloper) {
                     Button(onClick = { mostrarModeracionFotos = true }) {
-                        Text("Moderación Fotos")
+                        Text(stringResource(R.string.guide_photo_moderation))
                     }
 
                     Button(onClick = {
@@ -163,7 +164,7 @@ fun PantallaGuiaOficialTab(
                             }
                         }
                     }) {
-                        Text("Export JSON")
+                        Text(stringResource(R.string.guide_export_json))
                     }
 
                     IconButton(onClick = {
@@ -177,7 +178,7 @@ fun PantallaGuiaOficialTab(
         }
 
         if (esDeveloper) {
-            Text("Estás en modo edición. Los cambios afectan al identificador de todos los usuarios.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.guide_edit_mode_notice), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -187,12 +188,12 @@ fun PantallaGuiaOficialTab(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Buscar por nombre o especie...", style = MaterialTheme.typography.bodyMedium) },
+            placeholder = { Text(stringResource(R.string.guide_search_hint), style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpiar")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.guide_clear_search))
                     }
                 }
             },
@@ -211,7 +212,7 @@ fun PantallaGuiaOficialTab(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.SearchOff, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
                     Spacer(Modifier.height(8.dp))
-                    Text("No se encontraron resultados para \"$searchQuery\"", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.guide_no_results, searchQuery), color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -270,7 +271,7 @@ fun PantallaGuiaOficialTab(
                         Column(modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)) {
                             Text(ficha.nombreComun, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                             Text(ficha.nombreCientifico, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
-                            Text("${ficha.fotosUrls.size} fotos", color = Color.Yellow, style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.guide_photo_count, ficha.fotosUrls.size), color = Color.Yellow, style = MaterialTheme.typography.labelSmall)
                         }
                         if (esDeveloper) {
                             IconButton(onClick = { db.collection("fichas_peces").document(ficha.id).delete() }, modifier = Modifier.align(Alignment.TopEnd)) {
@@ -285,7 +286,7 @@ fun PantallaGuiaOficialTab(
         if (esDeveloper) {
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
-            Text("Reportes de Error de Usuarios", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.guide_user_error_reports), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
 
             // Sección para ver reportes (simplificada)
             var reportesCount by remember { mutableIntStateOf(0) }
@@ -293,7 +294,7 @@ fun PantallaGuiaOficialTab(
                 db.collection("reportes_error").addSnapshotListener { s, _ -> reportesCount = s?.size() ?: 0 }
             }
             Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(0.2f))) {
-                Text("Tienes $reportesCount reportes pendientes por revisar.", modifier = Modifier.padding(16.dp))
+                Text(stringResource(R.string.guide_pending_reports, reportesCount), modifier = Modifier.padding(16.dp))
             }
         }
     }
@@ -317,10 +318,10 @@ fun PantallaGuiaOficialTab(
 
         AlertDialog(
             onDismissRequest = { if(!subiendo) mostrarDialogoNueva = false },
-            title = { Text(if (fichaParaEditar == null) "Nueva Ficha de Referencia" else "Editar Ficha") },
+            title = { Text(if (fichaParaEditar == null) stringResource(R.string.guide_new_reference) else stringResource(R.string.guide_edit_reference)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Fotos:", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.guide_photos), style = MaterialTheme.typography.labelMedium)
                     Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray).clickable { multiPickerLauncher.launch("image/*") }, contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.AddAPhoto, null)
@@ -354,13 +355,13 @@ fun PantallaGuiaOficialTab(
                             }
                         }
                     }
-                    OutlinedTextField(value = nombreCientifico, onValueChange = { nombreCientifico = it }, label = { Text("Nombre Científico") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = nombreComun, onValueChange = { nombreComun = it }, label = { Text("Nombre Común / Locales") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = nombreIngles, onValueChange = { nombreIngles = it }, label = { Text("English Name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = regulacionComercial, onValueChange = { regulacionComercial = it }, label = { Text("Regulación Comercial") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = regulacionRecreativa, onValueChange = { regulacionRecreativa = it }, label = { Text("Regulación Recreativa") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = caracteristicasRaw, onValueChange = { caracteristicasRaw = it }, label = { Text("Características (una por línea)") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
-                    OutlinedTextField(value = puedeSerConfundidoCon, onValueChange = { puedeSerConfundidoCon = it }, label = { Text("Puede ser confundido con") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = nombreCientifico, onValueChange = { nombreCientifico = it }, label = { Text(stringResource(R.string.guide_scientific_name)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = nombreComun, onValueChange = { nombreComun = it }, label = { Text(stringResource(R.string.guide_common_name)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = nombreIngles, onValueChange = { nombreIngles = it }, label = { Text(stringResource(R.string.guide_english_name)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = regulacionComercial, onValueChange = { regulacionComercial = it }, label = { Text(stringResource(R.string.guide_commercial_regulation)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = regulacionRecreativa, onValueChange = { regulacionRecreativa = it }, label = { Text(stringResource(R.string.guide_recreational_regulation)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = caracteristicasRaw, onValueChange = { caracteristicasRaw = it }, label = { Text(stringResource(R.string.guide_characteristics_lines)) }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                    OutlinedTextField(value = puedeSerConfundidoCon, onValueChange = { puedeSerConfundidoCon = it }, label = { Text(stringResource(R.string.guide_confusable_with)) }, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
@@ -413,12 +414,12 @@ fun PantallaGuiaOficialTab(
                             withContext(Dispatchers.Main) {
                                 mostrarDialogoNueva = false
                                 fichaParaEditar = null
-                                Toast.makeText(context, "¡Guardado con éxito!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.guide_saved), Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            val msg = if (e is TimeoutCancellationException) "Error: Tiempo de espera agotado (Red lenta)"
-                                     else "Error: ${e.localizedMessage}"
+                            val msg = if (e is TimeoutCancellationException) context.getString(R.string.guide_save_timeout)
+                                     else context.getString(R.string.guide_save_error, e.localizedMessage ?: "")
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                 // Si falló pero el usuario dice que se creó, quizás cerrar el diálogo igual?
@@ -431,12 +432,12 @@ fun PantallaGuiaOficialTab(
                         }
                     }
                 }, enabled = !subiendo && nombreCientifico.isNotBlank()) {
-                    if (subiendo) CircularProgressIndicator(modifier = Modifier.size(20.dp)) else Text(if (fichaParaEditar == null) "Crear Ficha" else "Guardar Cambios")
+                    if (subiendo) CircularProgressIndicator(modifier = Modifier.size(20.dp)) else Text(if (fichaParaEditar == null) stringResource(R.string.guide_create_reference) else stringResource(R.string.guide_save_changes))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { mostrarDialogoNueva = false }, enabled = !subiendo) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -558,7 +559,7 @@ fun PantallaGuiaOficialTab(
                                 Button(onClick = {
                                     val matrix = Matrix().apply { postRotate(90f) }
                                     bitmapEditando?.let { bitmapEditando = Bitmap.createBitmap(it, 0, 0, it.width, it.height, matrix, true) }
-                                }) { Icon(Icons.Default.RotateRight, null); Text("Rotar") }
+                                }) { Icon(Icons.Default.RotateRight, null); Text(stringResource(R.string.guide_rotate)) }
 
                                 Button(onClick = {
                                     if (modoRecorte) {
@@ -578,13 +579,13 @@ fun PantallaGuiaOficialTab(
                                                 bitmapsNuevos.add(cropped)
                                             }
                                             urlImagenParaEditar = ""; bitmapParaEditar = null
-                                            Toast.makeText(context, "Imagen recortada", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.guide_image_cropped), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                     modoRecorte = !modoRecorte
                                 }, colors = ButtonDefaults.buttonColors(containerColor = if(modoRecorte) Color.Yellow else MaterialTheme.colorScheme.primary, contentColor = if(modoRecorte) Color.Black else Color.White)) {
                                     Icon(if(modoRecorte) Icons.Default.Check else Icons.Default.Crop, null)
-                                    Text(if(modoRecorte) "Confirmar Zoom" else "Zoom/Crop")
+                                    Text(if(modoRecorte) stringResource(R.string.guide_confirm_crop) else stringResource(R.string.guide_zoom_crop))
                                 }
                             }
 
@@ -601,10 +602,10 @@ fun PantallaGuiaOficialTab(
                                         urlsExistentes.add(0, current)
                                     }
                                     urlImagenParaEditar = ""; bitmapParaEditar = null
-                                    Toast.makeText(context, "Portada seleccionada", Toast.LENGTH_SHORT).show()
-                                }) { Icon(Icons.Default.Star, null); Text("Thumbnail") }
+                                    Toast.makeText(context, context.getString(R.string.guide_cover_selected), Toast.LENGTH_SHORT).show()
+                                }) { Icon(Icons.Default.Star, null); Text(stringResource(R.string.guide_thumbnail)) }
 
-                                OutlinedButton(onClick = { urlImagenParaEditar = ""; bitmapParaEditar = null }, border = BorderStroke(1.dp, Color.White)) { Text("Cerrar", color = Color.White) }
+                                OutlinedButton(onClick = { urlImagenParaEditar = ""; bitmapParaEditar = null }, border = BorderStroke(1.dp, Color.White)) { Text(stringResource(R.string.action_close), color = Color.White) }
 
                                 IconButton(onClick = {
                                     if (esNuevaImagenParaEditar) bitmapsNuevos.removeAt(indiceImagenParaEditar)
@@ -654,13 +655,13 @@ fun PantallaGuiaOficialTab(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))) {
                                 Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("Recreativa", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.guide_recreational), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                                     Text(ficha.regulacionRecreativa, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                             Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f))) {
                                 Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("Comercial", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.guide_commercial), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                                     Text(ficha.regulacionComercial, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
@@ -668,7 +669,7 @@ fun PantallaGuiaOficialTab(
 
                         // Características
                         if (ficha.caracteristicas.isNotEmpty()) {
-                            Text("Características Clave", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.guide_key_characteristics), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                             ficha.caracteristicas.forEach { char ->
                                 Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(start = 8.dp)) {
                                     Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -684,7 +685,7 @@ fun PantallaGuiaOficialTab(
                                     Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(12.dp))
                                     Column {
-                                        Text("Se puede confundir con:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                        Text(stringResource(R.string.guide_confusion_warning), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                                         Text(ficha.puedeSerConfundidoCon, style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
@@ -719,7 +720,7 @@ fun PhotoCarousel(
                     .data(urls[page])
                     .crossfade(true)
                     .build(),
-                contentDescription = "Foto ${page + 1} de ${urls.size}",
+                contentDescription = LocalContext.current.getString(R.string.guide_photo_description, page + 1, urls.size),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
                 placeholder = painterResource(id = R.drawable.logo_small),
@@ -806,7 +807,7 @@ fun AdminPhotoModerationDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Moderación de Fotos (${pendingSubmissions.size})",
+                        stringResource(R.string.guide_photo_moderation_count, pendingSubmissions.size),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -825,7 +826,7 @@ fun AdminPhotoModerationDialog(
                     }
                 } else if (pendingSubmissions.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No hay fotos pendientes de revisión", color = Color.Gray)
+                        Text(stringResource(R.string.guide_no_pending_photos), color = Color.Gray)
                     }
                 } else {
                     LazyColumn(
@@ -852,8 +853,8 @@ fun AdminPhotoModerationDialog(
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Spot: ${item.spotId}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text("Usuario: ${item.submittedByUserId.take(8)}...", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                        Text(stringResource(R.string.guide_moderation_spot, item.spotId), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text(stringResource(R.string.guide_moderation_user, item.submittedByUserId.take(8)), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                                     }
                                     Column {
                                         Button(
@@ -862,11 +863,11 @@ fun AdminPhotoModerationDialog(
                                                     val res = spotPhotoRepository.approveSubmissionTransaction(item.spotId, item, currentUid)
                                                     res.fold(
                                                         onSuccess = {
-                                                            Toast.makeText(context, "Foto aprobada exitosamente", Toast.LENGTH_SHORT).show()
+                                                            Toast.makeText(context, context.getString(R.string.guide_photo_approved), Toast.LENGTH_SHORT).show()
                                                             pendingSubmissions.remove(item)
                                                         },
                                                         onFailure = { err ->
-                                                            Toast.makeText(context, err.message ?: "Error al aprobar", Toast.LENGTH_LONG).show()
+                                                            Toast.makeText(context, err.message ?: context.getString(R.string.guide_approve_error), Toast.LENGTH_LONG).show()
                                                         }
                                                     )
                                                 }
@@ -874,7 +875,7 @@ fun AdminPhotoModerationDialog(
                                             modifier = Modifier.height(32.dp),
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                         ) {
-                                            Text("Aprobar", style = MaterialTheme.typography.labelSmall)
+                                            Text(stringResource(R.string.guide_approve), style = MaterialTheme.typography.labelSmall)
                                         }
                                         Spacer(Modifier.height(4.dp))
                                         OutlinedButton(
@@ -883,11 +884,11 @@ fun AdminPhotoModerationDialog(
                                                     val res = spotPhotoRepository.rejectSubmission(item, currentUid)
                                                     res.fold(
                                                         onSuccess = {
-                                                            Toast.makeText(context, "Foto rechazada", Toast.LENGTH_SHORT).show()
+                                                            Toast.makeText(context, context.getString(R.string.guide_photo_rejected), Toast.LENGTH_SHORT).show()
                                                             pendingSubmissions.remove(item)
                                                         },
                                                         onFailure = { err ->
-                                                            Toast.makeText(context, err.message ?: "Error al rechazar", Toast.LENGTH_LONG).show()
+                                                            Toast.makeText(context, err.message ?: context.getString(R.string.guide_reject_error), Toast.LENGTH_LONG).show()
                                                         }
                                                     )
                                                 }
@@ -895,7 +896,7 @@ fun AdminPhotoModerationDialog(
                                             modifier = Modifier.height(32.dp),
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                         ) {
-                                            Text("Rechazar", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                            Text(stringResource(R.string.guide_reject), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                                         }
                                     }
                                 }
